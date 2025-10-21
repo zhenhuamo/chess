@@ -15,6 +15,7 @@ export default function ChessBoard() {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [validMoves, setValidMoves] = useState<string[]>([]);
   const { isReady, analyze, analysis, info } = useStockfish();
+  const [flipped, setFlipped] = useState(false);
 
   useEffect(() => {
     setGame(new Chess());
@@ -71,30 +72,82 @@ export default function ChessBoard() {
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
-    return (
-      <div className="inline-block border-4 border-gray-800">
-        {ranks.map((rank) =>
-          files.map((file) => {
-            const square = `${file}${rank}` as Square;
-            const isLight = (file.charCodeAt(0) + rank.charCodeAt(0)) % 2 === 0;
-            const isSelected = square === selectedSquare;
-            const isValidMove = validMoves.includes(square);
+    const displayFiles = flipped ? files.slice().reverse() : files;
+    const displayRanks = flipped ? ranks.slice().reverse() : ranks;
 
-            return (
-              <button
-                key={square}
-                onClick={() => handleSquareClick(square)}
-                className={`w-16 h-16 flex items-center justify-center text-4xl font-bold cursor-pointer transition-colors ${
-                  isLight ? 'bg-amber-100' : 'bg-amber-700'
-                } ${isSelected ? 'bg-yellow-400' : ''} ${
-                  isValidMove ? 'ring-4 ring-green-400' : ''
-                }`}
-              >
-                {game?.get(square) && getPieceSymbol(game.get(square))}
-              </button>
-            );
-          })
-        )}
+    return (
+      <div className="flex flex-col gap-1">
+        {/* 文件标签 (顶部) */}
+        <div className="flex gap-1">
+          <div className="w-7"></div>
+          {displayFiles.map((file) => (
+            <div key={`file-top-${file}`} className="w-16 h-7 flex items-center justify-center text-xs font-bold text-gray-600">
+              {file}
+            </div>
+          ))}
+          <div className="w-7"></div>
+        </div>
+
+        {/* 棋盘 */}
+        <div className="flex gap-1">
+          {/* 左侧排名 */}
+          <div className="flex flex-col gap-1">
+            {displayRanks.map((rank) => (
+              <div key={`rank-left-${rank}`} className="w-7 h-16 flex items-center justify-center text-xs font-bold text-gray-600">
+                {rank}
+              </div>
+            ))}
+          </div>
+
+          {/* 棋盘主体 */}
+          <div className="inline-block border-4 border-gray-800 gap-1">
+            {displayRanks.map((rank) => (
+              <div key={`rank-${rank}`} className="flex gap-1">
+                {displayFiles.map((file) => {
+                  const square = `${file}${rank}` as Square;
+                  const isLight = (file.charCodeAt(0) + rank.charCodeAt(0)) % 2 === 0;
+                  const isSelected = square === selectedSquare;
+                  const isValidMove = validMoves.includes(square);
+
+                  return (
+                    <button
+                      key={square}
+                      onClick={() => handleSquareClick(square)}
+                      className={`w-16 h-16 flex items-center justify-center text-4xl font-bold cursor-pointer transition-all border-2 ${
+                        isLight ? 'bg-amber-100' : 'bg-amber-700'
+                      } ${isSelected ? 'border-yellow-400 bg-yellow-300' : 'border-transparent'} ${
+                        isValidMove ? 'ring-4 ring-inset ring-green-400' : ''
+                      }`}
+                      title={square}
+                    >
+                      {game?.get(square) && getPieceSymbol(game.get(square))}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* 右侧排名 */}
+          <div className="flex flex-col gap-1">
+            {displayRanks.map((rank) => (
+              <div key={`rank-right-${rank}`} className="w-7 h-16 flex items-center justify-center text-xs font-bold text-gray-600">
+                {rank}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 文件标签 (底部) */}
+        <div className="flex gap-1">
+          <div className="w-7"></div>
+          {displayFiles.map((file) => (
+            <div key={`file-bottom-${file}`} className="w-16 h-7 flex items-center justify-center text-xs font-bold text-gray-600">
+              {file}
+            </div>
+          ))}
+          <div className="w-7"></div>
+        </div>
       </div>
     );
   };
@@ -128,62 +181,129 @@ export default function ChessBoard() {
     setValidMoves([]);
   };
 
+  const getMoveHistory = () => {
+    if (!game) return [];
+    const history = game.history({ verbose: true });
+    return history.map((move: any) => `${move.san}`);
+  };
+
+  const toggleFlipped = () => {
+    setFlipped(!flipped);
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-      <h1 className="text-4xl font-bold mb-4">Chess Analyzer</h1>
-      <p className="mb-4 text-sm text-gray-600">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <h1 className="text-5xl font-bold mb-2 text-gray-800">♔ Chess Analyzer</h1>
+      <p className="mb-6 text-sm text-gray-600">
         {isReady ? '✓ Stockfish Ready' : '⟳ Loading Stockfish...'}
       </p>
-      <div className="mb-8">
-        {renderBoard()}
-      </div>
 
-      {/* Analysis Panel */}
-      <div className="mt-8 bg-white p-6 rounded-lg shadow-lg max-w-md">
-        <h2 className="text-xl font-bold mb-4">Analysis</h2>
-
-        {info && (
-          <div className="mb-4 pb-4 border-b">
-            <p className="text-sm text-gray-600">
-              Score: <span className="font-bold">{formatScore(info.score)}</span>
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Depth: {info.depth}
-            </p>
+      <div className="flex gap-8">
+        {/* 左侧：棋盘 */}
+        <div className="flex flex-col items-center gap-4">
+          {renderBoard()}
+          <div className="flex gap-2">
+            <button
+              onClick={resetGame}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+            >
+              New Game
+            </button>
+            <button
+              onClick={toggleFlipped}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+            >
+              Flip Board
+            </button>
           </div>
-        )}
-
-        {analysis && (
-          <div>
-            <p className="text-sm mb-2">
-              Best Move: <span className="font-bold text-green-600">{analysis.bestMove}</span>
-            </p>
-            <p className="text-xs text-gray-600 break-words">
-              Line: {analysis.pv}
-            </p>
-          </div>
-        )}
-
-        {!isReady && (
-          <p className="text-sm text-gray-500">Initializing Stockfish...</p>
-        )}
-      </div>
-
-      <button
-        onClick={resetGame}
-        className="mt-8 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-      >
-        Reset Game
-      </button>
-
-      {game && (
-        <div className="mt-8 text-center">
-          <p className="text-lg">
-            Status: {game.isCheckmate() ? 'Checkmate' : game.isDraw() ? 'Draw' : 'Playing'}
-          </p>
-          <p className="text-sm text-gray-600 mt-2">FEN: {game.fen()}</p>
         </div>
-      )}
+
+        {/* 右侧：分析面板 */}
+        <div className="w-80 flex flex-col gap-6">
+          {/* 分析信息 */}
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">Analysis</h2>
+
+            {info && (
+              <div className="mb-6 pb-4 border-b border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">
+                  Score: <span className="font-bold text-lg text-blue-600">{formatScore(info.score)}</span>
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-full transition-all duration-300"
+                    style={{ width: `${Math.max(0, Math.min(100, 50 + Number(info.score) / 10))}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Depth: {info.depth}
+                </p>
+              </div>
+            )}
+
+            {analysis && (
+              <div className="mb-4">
+                <p className="text-sm mb-2">
+                  Best Move: <span className="font-bold text-lg text-green-600">{analysis.bestMove}</span>
+                </p>
+                <p className="text-xs text-gray-600 break-words bg-gray-50 p-2 rounded">
+                  Line: {analysis.pv || 'analyzing...'}
+                </p>
+              </div>
+            )}
+
+            {!isReady && (
+              <p className="text-sm text-gray-500 animate-pulse">Initializing Stockfish...</p>
+            )}
+          </div>
+
+          {/* 游戏状态 */}
+          {game && (
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-bold mb-3 text-gray-800">Game Status</h3>
+              <p className="text-sm mb-2">
+                <span className="text-gray-600">Status:</span>{' '}
+                <span className="font-bold">
+                  {game.isCheckmate()
+                    ? '♟ Checkmate'
+                    : game.isStalemate()
+                      ? '♟ Stalemate'
+                    : game.isDraw()
+                      ? '♟ Draw'
+                    : game.isCheck()
+                      ? '⚠ Check'
+                      : '⚽ Playing'}
+                </span>
+              </p>
+              <p className="text-sm mb-2">
+                <span className="text-gray-600">Turn:</span> <span className="font-bold">{game.turn() === 'w' ? 'White' : 'Black'}</span>
+              </p>
+              <p className="text-sm mb-3">
+                <span className="text-gray-600">Moves:</span> <span className="font-bold">{game.moveNumber()}</span>
+              </p>
+              <details className="text-xs text-gray-600">
+                <summary className="cursor-pointer font-semibold mb-2">FEN String</summary>
+                <p className="bg-gray-50 p-2 rounded break-all font-mono">{game.fen()}</p>
+              </details>
+            </div>
+          )}
+
+          {/* 着法历史 */}
+          {game && getMoveHistory().length > 0 && (
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-bold mb-3 text-gray-800">Move History</h3>
+              <div className="flex flex-wrap gap-2">
+                {getMoveHistory().map((move, index) => (
+                  <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-mono">
+                    {index + 1}. {move}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+
