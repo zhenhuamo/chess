@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ThemeProviderClient from "./components/ThemeProviderClient";
 
 export const metadata: Metadata = {
   title: "Chess Analyzer",
@@ -13,7 +14,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeProviderClient>
+          {children}
+        </ThemeProviderClient>
+      </body>
     </html>
   );
 }
