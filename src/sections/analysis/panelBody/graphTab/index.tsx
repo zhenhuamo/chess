@@ -20,6 +20,7 @@ export default function GraphTab(props: GridProps) {
   const currentPosition = useAtomValue(currentPositionAtom);
   const { goToMove } = useChessActions(boardAtom);
   const game = useAtomValue(gameAtom);
+  const board = useAtomValue(boardAtom);
 
   const chartData: ChartItemData[] = useMemo(
     () => gameEval?.positions.map(formatEvalToChartData) ?? [],
@@ -61,7 +62,8 @@ export default function GraphTab(props: GridProps) {
             const payload = (e?.activePayload?.[0]?.payload as ChartItemData | undefined);
             if (!payload) return;
             // moveNb is 0-indexed, but goToMove expects 1-indexed moveIdx
-            goToMove(payload.moveNb + 1, game);
+            const base = game.history().length > 0 ? game : board;
+            goToMove(payload.moveNb + 1, base);
           }} style={{ cursor: "pointer" }}>
             <XAxis dataKey="moveNb" hide stroke="red" />
             <YAxis domain={[0, 20]} hide />

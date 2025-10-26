@@ -1,12 +1,11 @@
 import { Box, Divider, Stack, Typography } from "@mui/material";
 const Grid: any = Box;
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom } from "@/src/sections/analysis/states";
 import { useMemo, useCallback } from "react";
 import { getEvaluateGameParams, moveLineUciToSan } from "@/src/lib/chess";
 import { MoveClassification } from "@/src/types/enums";
 import { useChessActions } from "@/src/hooks/useChessActions";
-import { Chess } from "chess.js";
 
 type MoveRow = {
   ply: number;
@@ -69,8 +68,10 @@ const iconForSan = (san?: string, color: 'w'|'b' = 'w'): string => {
 export default function MovesTab(props: any) {
   const gameEval = useAtomValue(gameEvalAtom);
   const game = useAtomValue(gameAtom);
+  const board = useAtomValue(boardAtom);
   const meta = useAtomValue(gameMetaAtom);
-  const [board, setBoard] = useAtom(boardAtom);
+  // Use shared navigation helper so behavior matches GraphTab and toolbar
+  const { goToMove } = useChessActions(boardAtom);
 
   // Build move rows from game + eval
   const { pairs, summary, labels } = useMemo(() => {
@@ -130,40 +131,18 @@ export default function MovesTab(props: any) {
     return out;
   }, [game, gameEval?.positions, meta?.playerSide, meta?.engineVariant]);
 
+  // Jump helper: choose the correct base PGN (match Chesskit behavior)
+  // - If a full game PGN is loaded, navigate within that game
+  // - Otherwise (eg. analysis-only board moves), navigate within the board state
   const jumpTo = useCallback((ply: number) => {
-    console.log('[MovesTab] jumpTo called with ply=', ply, 'game.moves=', game.history().length);
-
-    // Create a new Chess instance from the full game
-    const newBoard = new Chess();
-    newBoard.loadPgn(game.pgn());
-
-    // Get total number of moves in the game
-    const movesNb = game.history().length;
-    console.log('[MovesTab] movesNb=', movesNb, 'ply=', ply, 'targeting to have', ply, 'moves');
-
-    if (ply < 0 || ply > movesNb) {
-      console.warn('[MovesTab] ply is out of range');
-      return;
+    const base = game.history().length > 0 ? game : board;
+    console.log('[MovesTab] jumpTo ply=', ply, 'base.moves=', base.history().length);
+    try {
+      goToMove(ply, base);
+    } catch (e) {
+      console.warn('[MovesTab] goToMove failed', e);
     }
-
-    // Undo moves to reach the target position
-    // If movesNb=10 and ply=3, we need to undo 7 times (10-3)
-    const undoCount = movesNb - ply;
-    console.log('[MovesTab] will undo', undoCount, 'times');
-    for (let i = 0; i < undoCount; i++) {
-      const lastMove = newBoard.undo();
-      if (!lastMove) {
-        console.warn('[MovesTab] undo returned null at iteration', i);
-        break;
-      }
-    }
-
-    const finalMoveCount = newBoard.history().length;
-    console.log('[MovesTab] after undo, newBoard.history().length=', finalMoveCount, 'FEN=', newBoard.fen());
-
-    // Update the board atom to display the new position
-    setBoard(newBoard);
-  }, [game, setBoard]);
+  }, [goToMove, game, board]);
 
   // Simple renderer for a vertical list - Traditional format with smooth scrolling
   const Table = () => (

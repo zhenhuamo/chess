@@ -17,9 +17,17 @@ export default function LoadGame() {
     // Only reset board when the actual game content changes (detected by comparing move history)
     const currentGameMoves = game.history().join(',');
 
-    // If moves haven't changed, don't reset the board
-    // This prevents resetting the board when we're just navigating through moves
+    // If moves haven't changed since last loaded game, do nothing
     if (currentGameMoves === lastGameMovesRef.current && lastGameMovesRef.current !== "") {
+      return;
+    }
+
+    // Avoid clobbering user's current navigation: if the user has already moved the analysis board
+    // (e.g., clicked a move in the Moves list) then don't reset the board even if a late game load happens.
+    if (board.history().length > 0 && lastGameMovesRef.current !== "") {
+      // Still update the ref so subsequent identical loads are ignored
+      console.log('[LoadGame] Game moves changed but board already navigated by user; skip resetting board. Current:', currentGameMoves.substring(0, 20));
+      lastGameMovesRef.current = currentGameMoves;
       return;
     }
 
