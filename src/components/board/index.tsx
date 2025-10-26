@@ -32,6 +32,7 @@ export interface Props {
 export default function Board({ id: boardId, canPlay, gameAtom, boardSize, whitePlayer, blackPlayer, boardOrientation = Color.White, currentPositionAtom = atom({}), showBestMoveArrow = false, showPlayerMoveIconAtom, showEvaluationBar = false, }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
   const game = useAtomValue(gameAtom);
+  console.log('[Board] game updated, history length=', game.history().length, 'FEN=', game.fen()?.substring(0, 20));
   const { playMove } = useChessActions(gameAtom);
   const clickedSquaresAtom = useMemo(() => atom<string[]>([]), []);
   const setClickedSquares = useSetAtom(clickedSquaresAtom);
