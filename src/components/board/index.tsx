@@ -45,7 +45,10 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
   const boardHue = useAtomValue(boardHueAtom);
 
   const gameFen = game.fen();
-  useEffect(() => { setClickedSquares([]); }, [gameFen, setClickedSquares]);
+  useEffect(() => {
+    console.log('[Board] FEN changed:', gameFen);
+    setClickedSquares([]);
+  }, [gameFen, setClickedSquares]);
 
   const isPiecePlayable = useCallback(({ piece }: { piece: string }): boolean => {
     if (game.isGameOver() || !canPlay) return false;

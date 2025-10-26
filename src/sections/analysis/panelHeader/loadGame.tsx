@@ -12,6 +12,7 @@ export default function LoadGame() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    console.log('[LoadGame] Effect triggered, game.history()=', (game as any)?.history?.().length ?? 0);
     // When a new game is loaded, reset the analysis board to that game's starting position.
     // If the PGN contains a FEN header (custom starting position), honor it; otherwise start from the default.
     try {
@@ -19,10 +20,12 @@ export default function LoadGame() {
       const startFen: string | undefined = headers?.FEN;
       const NextCtor: any = (board as any)?.constructor ?? (Chess as any);
       const nextBoard = startFen ? new NextCtor(startFen) : new NextCtor();
+      console.log('[LoadGame] Setting board to starting position, FEN=', startFen ?? 'default');
       setBoard(nextBoard);
     } catch {
       // Fallback to a fresh default board to avoid breaking the UI
       const NextCtor: any = (board as any)?.constructor ?? (Chess as any);
+      console.log('[LoadGame] Error in effect, setting board to default');
       setBoard(new NextCtor());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
