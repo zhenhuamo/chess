@@ -28,6 +28,7 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
   const [showHintArrow, setShowHintArrow] = useLocalStorage<boolean>('play-show-hint', true);
   const [userPlays, setUserPlays] = useLocalStorage<'w'|'b'>('play-side', 'w');
   const [hint, setHint] = useState<string | null>(null);
+  const hintRequestedRef = useRef(false);
   const pool = useStockfishPool();
   const [clsByPly, setClsByPly] = useState<Record<number, MoveClassification | undefined>>({});
 
@@ -237,14 +238,26 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
   // Hint: run a shallow search and show suggested move
   const requestHint = () => {
     setHint(null);
+    hintRequestedRef.current = true;
     analyze(game.fen(), 10);
     // we'll read analysis.bestMove on next tick (without engineThinking flag)
   };
   useEffect(() => {
     if (!engineThinking && analysis?.bestMove) {
       setHint(analysis.bestMove);
+      hintRequestedRef.current = false;
     }
   }, [analysis, engineThinking]);
+  // Also surface hint early from PV while thinking, so箭头能尽快出现
+  useEffect(() => {
+    if (!hintRequestedRef.current) return;
+    const pv = (info?.pv || '').trim();
+    if (!pv) return;
+    const first = pv.split(' ')[0];
+    if (!first || first === '(none)') return;
+    // Only set if still no hint
+    setHint((prev) => prev || first);
+  }, [info]);
 
   // Highlight king in check
   const inCheck = game.isCheck();
