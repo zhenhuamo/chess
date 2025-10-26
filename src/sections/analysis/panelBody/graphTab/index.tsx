@@ -60,7 +60,8 @@ export default function GraphTab(props: GridProps) {
           <AreaChart width={500} height={400} data={chartData} margin={{ top: 0, left: 0, right: 0, bottom: 0 }} onClick={(e) => {
             const payload = (e?.activePayload?.[0]?.payload as ChartItemData | undefined);
             if (!payload) return;
-            goToMove(payload.moveNb, game);
+            // moveNb is 0-indexed, but goToMove expects 1-indexed moveIdx
+            goToMove(payload.moveNb + 1, game);
           }} style={{ cursor: "pointer" }}>
             <XAxis dataKey="moveNb" hide stroke="red" />
             <YAxis domain={[0, 20]} hide />

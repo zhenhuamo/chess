@@ -111,21 +111,39 @@ export const useChessActions = (chessAtom: PrimitiveAtom<Chess>) => {
 
   const goToMove = useCallback(
     (moveIdx: number, fullGame: Chess) => {
+      console.log('[useChessActions.goToMove] called with moveIdx=', moveIdx);
       if (moveIdx < 0) return;
 
       const newGame = new Chess();
       newGame.loadPgn(fullGame.pgn());
 
       const movesNb = fullGame.history().length;
-      if (moveIdx > movesNb) return;
-
-      let lastMove: Move | null = {} as Move;
-      for (let i = movesNb; i > moveIdx; i--) {
-        lastMove = newGame.undo();
+      console.log('[useChessActions.goToMove] movesNb=', movesNb, 'moveIdx=', moveIdx, 'targeting to have', moveIdx, 'moves');
+      if (moveIdx > movesNb) {
+        console.warn('[useChessActions.goToMove] moveIdx exceeds movesNb, clamping to movesNb');
+        return;
       }
 
+      let lastMove: Move | null = {} as Move;
+      // Undo moves to reach the target position
+      // If movesNb=10 and moveIdx=3, we need to undo 7 times (10-3)
+      const undoCount = movesNb - moveIdx;
+      console.log('[useChessActions.goToMove] will undo', undoCount, 'times');
+      for (let i = 0; i < undoCount; i++) {
+        lastMove = newGame.undo();
+        if (!lastMove) {
+          console.warn('[useChessActions.goToMove] undo returned null at iteration', i);
+          break;
+        }
+      }
+
+      const finalMoveCount = newGame.history().length;
+      console.log('[useChessActions.goToMove] after undo, newGame.history().length=', finalMoveCount, 'lastMove=', lastMove?.san);
+
       setGame(newGame);
-      playSoundFromMove(lastMove);
+      if (lastMove && typeof lastMove === 'object' && 'san' in lastMove) {
+        playSoundFromMove(lastMove);
+      }
     },
     [setGame]
   );

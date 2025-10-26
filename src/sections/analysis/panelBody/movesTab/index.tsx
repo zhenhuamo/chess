@@ -130,6 +130,7 @@ export default function MovesTab(props: any) {
   }, [game, gameEval?.positions, meta?.playerSide, meta?.engineVariant]);
 
   const jumpTo = useCallback((ply: number) => {
+    console.log('[MovesTab] jumpTo called with ply=', ply, 'game.moves=', game.history().length);
     goToMove(ply, game);
   }, [goToMove, game]);
 
@@ -198,7 +199,13 @@ export default function MovesTab(props: any) {
               <Typography variant="caption" sx={{ width: 20, color:'text.secondary', textAlign:'right', fontWeight: 600, fontSize: '0.75rem' }}>{r.no}.</Typography>
 
               {/* Player move */}
-              <Box onClick={() => playerM && jumpTo((r.no-1)*2 + ((meta?.playerSide||'w')==='w'?1:2))} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' } }}>
+              <Box onClick={() => {
+                if (playerM) {
+                  const ply = (r.no-1)*2 + ((meta?.playerSide||'w')==='w'?1:2);
+                  console.log('[MovesTab] Player move clicked: ply=', ply, 'playerM=', playerM.san);
+                  jumpTo(ply);
+                }
+              }} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' } }}>
                 {playerM ? (
                   <>
                     <Dot color={playerDot} size={4} />
@@ -212,7 +219,13 @@ export default function MovesTab(props: any) {
               </Box>
 
               {/* Engine move */}
-              <Box onClick={() => engineM && jumpTo((r.no-1)*2 + ((meta?.playerSide||'w')==='w'?2:1))} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' } }}>
+              <Box onClick={() => {
+                if (engineM) {
+                  const ply = (r.no-1)*2 + ((meta?.playerSide||'w')==='w'?2:1);
+                  console.log('[MovesTab] Engine move clicked: ply=', ply, 'engineM=', engineM.san);
+                  jumpTo(ply);
+                }
+              }} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' } }}>
                 {engineM ? (
                   <>
                     <Dot color={engineDot} size={4} />
