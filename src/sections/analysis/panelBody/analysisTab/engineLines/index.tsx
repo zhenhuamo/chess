@@ -17,12 +17,27 @@ export default function EngineLines(props: GridProps) {
     : linesSkeleton;
 
   return (
-    <Grid display="flex" alignItems="center" justifyContent="center" width="100%" {...props}>
-      <Stack spacing={1} sx={{ width: '100%' }}>
+    <Grid display="flex" alignItems="stretch" justifyContent="center" width="100%" {...props}>
+      <Stack spacing={0.5} sx={{ width: '100%' }}>
         <Typography variant="caption" color="text.secondary">Engine Lines</Typography>
-        {engineLines.map((line) => (
-          <LineEvaluation key={line.multiPv} line={line} />
-        ))}
+        <Box sx={{
+          // default更高，直接能看到 PV#1~#3；可向上拖拽扩展
+          height: 280,
+          minHeight: 180,
+          maxHeight: '60vh',
+          resize: 'vertical',
+          overflow: 'auto',
+          pr: 0.5,
+          borderRadius: 1,
+          border: '1px dashed',
+          borderColor: 'divider',
+        }}>
+          <Stack spacing={1} sx={{ width: '100%' }}>
+            {engineLines.map((line) => (
+              <LineEvaluation key={line.multiPv} line={line} />
+            ))}
+          </Stack>
+        </Box>
       </Stack>
     </Grid>
   );
