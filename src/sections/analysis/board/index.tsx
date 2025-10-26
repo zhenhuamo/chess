@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { boardAtom, boardOrientationAtom, currentPositionAtom, gameAtom, showBestMoveArrowAtom, showPlayerMoveIconAtom } from "@/src/sections/analysis/states";
+import { boardAtom, boardOrientationAtom, currentPositionAtom, gameAtom, showBestMoveArrowAtom } from "@/src/sections/analysis/states";
 import { useMemo } from "react";
 import { useScreenSize } from "@/src/hooks/useScreenSize";
 import { Color } from "@/src/types/enums";
@@ -33,7 +33,6 @@ export default function BoardContainer({ reservedWidth = 900 }: { reservedWidth?
       boardOrientation={boardOrientation ? Color.White : Color.Black}
       currentPositionAtom={currentPositionAtom}
       showBestMoveArrow={showBestMoveArrow}
-      showPlayerMoveIconAtom={showPlayerMoveIconAtom}
       showEvaluationBar={true}
     />
   );
