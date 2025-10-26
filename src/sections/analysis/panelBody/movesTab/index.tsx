@@ -200,6 +200,8 @@ export default function MovesTab(props: any) {
                 fontSize: '0.8rem',
                 borderRadius: 0.5,
                 transition: 'all 0.15s ease',
+                position: 'relative',
+                zIndex: 1,
                 '&:hover': {
                   bgcolor: 'action.hover',
                   transform: 'translateX(2px)',
@@ -215,7 +217,7 @@ export default function MovesTab(props: any) {
                   console.log('[MovesTab] Player move clicked: ply=', ply, 'playerM=', playerM.san);
                   jumpTo(ply);
                 }
-              }} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' } }}>
+              }} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' }, position: 'relative', zIndex: 2, pointerEvents: 'auto' }}>
                 {playerM ? (
                   <>
                     <Dot color={playerDot} size={4} />
@@ -235,7 +237,7 @@ export default function MovesTab(props: any) {
                   console.log('[MovesTab] Engine move clicked: ply=', ply, 'engineM=', engineM.san);
                   jumpTo(ply);
                 }
-              }} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' } }}>
+              }} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' }, position: 'relative', zIndex: 2, pointerEvents: 'auto' }}>
                 {engineM ? (
                   <>
                     <Dot color={engineDot} size={4} />

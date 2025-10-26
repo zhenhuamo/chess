@@ -45,7 +45,12 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
   const pieceSet = useAtomValue(pieceSetAtom);
   const boardHue = useAtomValue(boardHueAtom);
 
+  // Use only the piece placement part of the FEN for the board position.
+  // react-chessboard accepts a full FEN, but reducing to the placement
+  // portion makes it explicit and avoids any edge-cases where only
+  // metadata changes (turn, castling, etc.) without any visual change.
   const gameFen = game.fen();
+  const positionPlacement = useMemo(() => (gameFen || '').split(' ')[0] || '', [gameFen]);
   useEffect(() => {
     console.log('[Board] FEN changed:', gameFen);
     setClickedSquares([]);
@@ -57,9 +62,12 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
     return false;
   }, [canPlay, game]);
 
-  const onPieceDrop = useCallback((source: string, target: string, piece: string): boolean => {
-    if (!isPiecePlayable({ piece })) return false;
-    const result = playMove({ from: source, to: target, promotion: piece[1]?.toLowerCase() ?? "q" });
+  // Adapter for react-chessboard v5 drop handler
+  const onPieceDrop = useCallback((args: { pieceType: string; sourceSquare: string; targetSquare: string | null; }): boolean => {
+    const { pieceType, sourceSquare, targetSquare } = args;
+    if (!targetSquare) return false;
+    if (!isPiecePlayable({ piece: pieceType })) return false;
+    const result = playMove({ from: sourceSquare, to: targetSquare, promotion: pieceType[1]?.toLowerCase() ?? "q" });
     return !!result;
   }, [isPiecePlayable, playMove]);
 
@@ -101,8 +109,11 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
     setClickedSquares((prev) => prev.includes(square) ? prev.filter((s) => s !== square) : [...prev, square]);
   }, [setClickedSquares]);
 
-  const handlePieceDragBegin = useCallback((_: string, square: string) => { resetMoveClick(square); }, [resetMoveClick]);
-  const handlePieceDragEnd = useCallback(() => { resetMoveClick(); }, [resetMoveClick]);
+  // v5 exposes a single onPieceDrag callback; keep local UX consistent
+  const handlePieceDrag = useCallback(({ square }: { square: string | null }) => {
+    if (square) resetMoveClick(square);
+    else resetMoveClick();
+  }, [resetMoveClick]);
 
   const onPromotionPieceSelect = useCallback((piece?: any, from?: string, to?: string) => {
     if (!piece) return false;
@@ -121,11 +132,15 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
     return false;
   }, [moveClickFrom, moveClickTo, playMove, resetMoveClick]);
 
-  const customArrows: any[] = useMemo(() => {
+  const customArrows: Array<{ startSquare: string; endSquare: string; color: string }> = useMemo(() => {
     const bestMove = position?.lastEval?.bestMove;
     const moveClassification = position?.eval?.moveClassification as MoveClassification | undefined;
     if (bestMove && showBestMoveArrow && moveClassification && ![MoveClassification.Best, MoveClassification.Opening, MoveClassification.Forced, MoveClassification.Perfect].includes(moveClassification)) {
-      const bestMoveArrow = [ bestMove.slice(0, 2), bestMove.slice(2, 4), tinycolor(CLASSIFICATION_COLORS[MoveClassification.Best]).spin(-boardHue).toHexString(), ] as any;
+      const bestMoveArrow = {
+        startSquare: bestMove.slice(0, 2),
+        endSquare: bestMove.slice(2, 4),
+        color: tinycolor(CLASSIFICATION_COLORS[MoveClassification.Best]).spin(-boardHue).toHexString(),
+      };
       return [bestMoveArrow];
     }
     return [];
@@ -135,9 +150,13 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
     return getSquareRenderer({ currentPositionAtom: currentPositionAtom, clickedSquaresAtom, playableSquaresAtom, showPlayerMoveIconAtom, });
   }, [ currentPositionAtom, clickedSquaresAtom, playableSquaresAtom, showPlayerMoveIconAtom ]);
 
+  // react-chessboard v5 piece renderer no longer passes squareWidth.
+  // Render pieces as full-square background images instead.
   const customPieces = useMemo(() => PIECE_CODES.reduce<any>((acc, piece) => {
-    acc[piece] = ({ squareWidth }: any) => (
-      <Box width={squareWidth} height={squareWidth} sx={{ backgroundImage: `url(/piece/${pieceSet}/${piece}.svg)`, backgroundSize: "contain" }} />
+    acc[piece] = () => (
+      // Use <img> to avoid any CSS edge-cases with background images and ensure proper sizing
+      <img src={`/piece/${pieceSet}/${piece}.svg`} alt={piece}
+           style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
     );
     return acc;
   }, {}), [pieceSet]);
@@ -156,7 +175,37 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
       <Grid display="flex" flexDirection="column" rowGap={1.5} justifyContent="center" alignItems="center" pl={showEvaluationBar ? 2 : 0} flex={1}>
         <PlayerHeader color={boardOrientation === Color.White ? Color.Black : Color.White} gameAtom={gameAtom} player={boardOrientation === Color.White ? blackPlayer : whitePlayer} />
         <Grid display="flex" justifyContent="center" alignItems="center" ref={boardRef} width="100%">
-          <AnyChessboard position={gameFen} onPieceDrop={onPieceDrop} boardOrientation={boardOrientation === Color.White ? "white" : "black"} customBoardStyle={customBoardStyle} customArrows={customArrows} isDraggablePiece={isPiecePlayable} customSquare={SquareRenderer} onSquareClick={handleSquareLeftClick} onSquareRightClick={handleSquareRightClick} onPieceDragBegin={handlePieceDragBegin} onPieceDragEnd={handlePieceDragEnd} onPromotionPieceSelect={onPromotionPieceSelect} showPromotionDialog={showPromotionDialog} promotionToSquare={moveClickTo} animationDuration={200} customPieces={customPieces} />
+          {/*
+            Pass a stable id and key so the third-party board reliably
+            re-renders when the position changes. Using the piece-placement
+            part of the FEN for both `position` and `key` guarantees a
+            visual refresh even if only non-visual FEN fields changed.
+          */}
+          <AnyChessboard
+            key={`${boardId}-${positionPlacement}`}
+            options={{
+              id: boardId,
+              position: positionPlacement,
+              boardOrientation: boardOrientation === Color.White ? 'white' : 'black',
+              boardStyle: customBoardStyle,
+              // animations
+              animationDurationInMs: 200,
+              // pieces & rendering
+              pieces: customPieces,
+              squareRenderer: (({ piece, square, children }: { piece: { pieceType: string } | null; square: string; children?: any; }) => (
+                // Reuse our SquareRenderer component signature
+                (SquareRenderer as any)({ square, children })
+              )) as any,
+              // arrows
+              arrows: customArrows as any,
+              // dragging & input
+              canDragPiece: ({ isSparePiece, piece }: { isSparePiece: boolean; piece: { pieceType: string }; square: string | null; }) => !isSparePiece && isPiecePlayable({ piece: piece.pieceType }),
+              onPieceDrop: ({ piece, sourceSquare, targetSquare }: { piece: { pieceType: string; position: string }; sourceSquare: string; targetSquare: string | null; }) => onPieceDrop({ pieceType: piece.pieceType, sourceSquare, targetSquare }),
+              onSquareClick: ({ piece, square }: { piece: { pieceType: string } | null; square: string; }) => handleSquareLeftClick(square, piece?.pieceType),
+              onSquareRightClick: ({ square }: { square: string; }) => handleSquareRightClick(square),
+              onPieceDrag: ({ square }: { square: string | null }) => handlePieceDrag({ square }),
+            }}
+          />
         </Grid>
         <PlayerHeader color={boardOrientation} gameAtom={gameAtom} player={boardOrientation === Color.White ? whitePlayer : blackPlayer} />
       </Grid>

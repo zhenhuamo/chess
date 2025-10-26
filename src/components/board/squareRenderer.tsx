@@ -41,6 +41,8 @@ export const getSquareRenderer = ({
     const moveIcon = useMemo(() => {
       const lastMove = position?.lastMove;
       if (!lastMove || !showPlayerMoveIcon) return null;
+      // Only render the icon on the destination square of the last move
+      if (lastMove.to !== square) return null;
       return (
         <Box
           sx={{
@@ -55,7 +57,7 @@ export const getSquareRenderer = ({
           }}
         />
       );
-    }, [playerIconColor, position, showPlayerMoveIcon]);
+    }, [playerIconColor, position, showPlayerMoveIcon, square]);
 
     const hoverStyle = useCallback(
       (sq: string) => {
