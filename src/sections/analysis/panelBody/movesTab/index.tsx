@@ -1,12 +1,11 @@
 import { Box, Divider, Stack, Typography } from "@mui/material";
 const Grid: any = Box;
-import { useAtom, useAtomValue } from "jotai";
-import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom } from "@/src/sections/analysis/states";
-import { useMemo, useCallback } from "react";
+import { useAtomValue } from "jotai";
+import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom, currentPositionAtom } from "@/src/sections/analysis/states";
+import { useMemo, useCallback, useEffect, useRef } from "react";
 import { getEvaluateGameParams, moveLineUciToSan } from "@/src/lib/chess";
 import { MoveClassification } from "@/src/types/enums";
 import { useChessActions } from "@/src/hooks/useChessActions";
-import { Chess } from "chess.js";
 
 type MoveRow = {
   ply: number;
@@ -69,8 +68,12 @@ const iconForSan = (san?: string, color: 'w'|'b' = 'w'): string => {
 export default function MovesTab(props: any) {
   const gameEval = useAtomValue(gameEvalAtom);
   const game = useAtomValue(gameAtom);
+  const board = useAtomValue(boardAtom);
   const meta = useAtomValue(gameMetaAtom);
-  const [board, setBoard] = useAtom(boardAtom);
+  const currentPosition = useAtomValue(currentPositionAtom);
+  const activePly = currentPosition?.currentMoveIdx ?? 0; // 0 = initial position
+  // Use shared navigation helper so behavior matches GraphTab and toolbar
+  const { goToMove } = useChessActions(boardAtom);
 
   // Build move rows from game + eval
   const { pairs, summary, labels } = useMemo(() => {
@@ -130,42 +133,29 @@ export default function MovesTab(props: any) {
     return out;
   }, [game, gameEval?.positions, meta?.playerSide, meta?.engineVariant]);
 
+  // Jump helper: choose the correct base PGN (match GraphTab behavior)
   const jumpTo = useCallback((ply: number) => {
-    console.log('[MovesTab] jumpTo called with ply=', ply, 'game.moves=', game.history().length);
-
-    // Create a new Chess instance from the full game
-    const newBoard = new Chess();
-    newBoard.loadPgn(game.pgn());
-
-    // Get total number of moves in the game
-    const movesNb = game.history().length;
-    console.log('[MovesTab] movesNb=', movesNb, 'ply=', ply, 'targeting to have', ply, 'moves');
-
-    if (ply < 0 || ply > movesNb) {
-      console.warn('[MovesTab] ply is out of range');
-      return;
+    const base = game.history().length > 0 ? game : board;
+    console.log('[MovesTab] jumpTo ply=', ply, 'base.moves=', base.history().length);
+    try {
+      goToMove(ply, base);
+    } catch (e) {
+      console.warn('[MovesTab] goToMove failed', e);
     }
-
-    // Undo moves to reach the target position
-    // If movesNb=10 and ply=3, we need to undo 7 times (10-3)
-    const undoCount = movesNb - ply;
-    console.log('[MovesTab] will undo', undoCount, 'times');
-    for (let i = 0; i < undoCount; i++) {
-      const lastMove = newBoard.undo();
-      if (!lastMove) {
-        console.warn('[MovesTab] undo returned null at iteration', i);
-        break;
-      }
-    }
-
-    const finalMoveCount = newBoard.history().length;
-    console.log('[MovesTab] after undo, newBoard.history().length=', finalMoveCount, 'FEN=', newBoard.fen());
-
-    // Update the board atom to display the new position
-    setBoard(newBoard);
-  }, [game, setBoard]);
+  }, [goToMove, game, board]);
 
   // Simple renderer for a vertical list - Traditional format with smooth scrolling
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    if (!activePly) return;
+    const el = listRef.current.querySelector(`[data-ply="${activePly}"]`) as HTMLElement | null;
+    if (el) {
+      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+    }
+  }, [activePly, pairs.length]);
+
   const Table = () => (
     <Box sx={{
       width:'100%',
@@ -199,6 +189,7 @@ export default function MovesTab(props: any) {
             }
           }
         }}
+        ref={listRef}
       >
         {pairs.map((r) => {
           const playerM = (meta?.playerSide||'w')==='w'? r.w : r.b;
@@ -207,6 +198,10 @@ export default function MovesTab(props: any) {
           const engineIcon = engineM ? iconForSan(engineM.san, engineM.color) : '';
           const playerDot = playerM ? clsColor[clsLabel(playerM.cls) || ''] || '#999' : '#999';
           const engineDot = engineM ? clsColor[clsLabel(engineM.cls) || ''] || '#999' : '#999';
+          const playerPly = (r.no-1)*2 + ((meta?.playerSide||'w')==='w'?1:2);
+          const enginePly = (r.no-1)*2 + ((meta?.playerSide||'w')==='w'?2:1);
+          const isActivePlayer = activePly === playerPly;
+          const isActiveEngine = activePly === enginePly;
 
           return (
             <Stack
@@ -221,6 +216,8 @@ export default function MovesTab(props: any) {
                 fontSize: '0.8rem',
                 borderRadius: 0.5,
                 transition: 'all 0.15s ease',
+                position: 'relative',
+                zIndex: 1,
                 '&:hover': {
                   bgcolor: 'action.hover',
                   transform: 'translateX(2px)',
@@ -236,7 +233,7 @@ export default function MovesTab(props: any) {
                   console.log('[MovesTab] Player move clicked: ply=', ply, 'playerM=', playerM.san);
                   jumpTo(ply);
                 }
-              }} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' } }}>
+              }} data-ply={playerPly} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' }, position: 'relative', zIndex: 2, pointerEvents: 'auto', bgcolor: isActivePlayer ? 'action.selected' : undefined, borderRadius: 0.5, boxShadow: isActivePlayer ? 'inset 2px 0 0 0 rgba(25,118,210,.9)' : undefined }}>
                 {playerM ? (
                   <>
                     <Dot color={playerDot} size={4} />
@@ -256,7 +253,7 @@ export default function MovesTab(props: any) {
                   console.log('[MovesTab] Engine move clicked: ply=', ply, 'engineM=', engineM.san);
                   jumpTo(ply);
                 }
-              }} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' } }}>
+              }} data-ply={enginePly} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' }, position: 'relative', zIndex: 2, pointerEvents: 'auto', bgcolor: isActiveEngine ? 'action.selected' : undefined, borderRadius: 0.5, boxShadow: isActiveEngine ? 'inset 2px 0 0 0 rgba(25,118,210,.9)' : undefined }}>
                 {engineM ? (
                   <>
                     <Dot color={engineDot} size={4} />
