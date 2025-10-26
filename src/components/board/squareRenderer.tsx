@@ -87,18 +87,18 @@ export const getSquareRenderer = ({
       const dest = position?.lastMove?.to;
       if (!cls || dest !== square) return undefined;
       const map: Record<string, string> = {
-        Splendid: 'splendid',
-        Perfect: 'perfect',
-        Excellent: 'excellent',
-        Best: 'best',
-        Okay: 'okay',
-        Inaccuracy: 'inaccuracy',
-        Mistake: 'mistake',
-        Blunder: 'blunder',
-        Forced: 'forced',
-        Opening: 'opening',
+        splendid: 'splendid',
+        perfect: 'perfect',
+        excellent: 'excellent',
+        best: 'best',
+        okay: 'okay',
+        inaccuracy: 'inaccuracy',
+        mistake: 'mistake',
+        blunder: 'blunder',
+        forced: 'forced',
+        opening: 'opening',
       };
-      const key = map[String(cls)] || 'best';
+      const key = map[String(cls).toLowerCase()] || 'best';
       return `/icons/${key}.png`;
     })();
     return (

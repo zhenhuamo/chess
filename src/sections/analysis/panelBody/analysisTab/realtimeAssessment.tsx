@@ -4,15 +4,16 @@ import { useAtomValue } from "jotai";
 import { boardAtom, currentPositionAtom } from "@/src/sections/analysis/states";
 import { moveLineUciToSan } from "@/src/lib/chess";
 
+// MoveClassification enum values are lowercase strings – keep keys lowercase
 const colorMap: Record<string, string> = {
-  Splendid:'#22d3ee', Perfect:'#38bdf8', Excellent:'#22c55e', Best:'#10b981',
-  Okay:'#84cc16', Inaccuracy:'#eab308', Mistake:'#f97316', Blunder:'#ef4444',
-  Forced:'#94a3b8', Opening:'#94a3b8'
+  splendid:'#22d3ee', perfect:'#38bdf8', excellent:'#22c55e', best:'#10b981',
+  okay:'#84cc16', inaccuracy:'#eab308', mistake:'#f97316', blunder:'#ef4444',
+  forced:'#94a3b8', opening:'#94a3b8'
 };
 const iconMap: Record<string, string> = {
-  Splendid:'splendid', Perfect:'perfect', Excellent:'excellent', Best:'best',
-  Okay:'okay', Inaccuracy:'inaccuracy', Mistake:'mistake', Blunder:'blunder',
-  Forced:'forced', Opening:'opening'
+  splendid:'splendid', perfect:'perfect', excellent:'excellent', best:'best',
+  okay:'okay', inaccuracy:'inaccuracy', mistake:'mistake', blunder:'blunder',
+  forced:'forced', opening:'opening'
 };
 
 export default function RealtimeAssessment() {
@@ -34,8 +35,9 @@ export default function RealtimeAssessment() {
     if (bestUci && prevFen) bestSan = moveLineUciToSan(prevFen)(bestUci);
   } catch {}
 
-  const color = colorMap[String(cls)] || 'inherit';
-  const icon = `/icons/${iconMap[String(cls)]||'best'}.png`;
+  const key = String(cls).toLowerCase();
+  const color = colorMap[key] || 'inherit';
+  const icon = `/icons/${iconMap[key]||'best'}.png`;
 
   return (
     <Box sx={{ mt: 0.5, p: 1, borderRadius: 1.5, bgcolor: 'grey.900', border: '1px solid', borderColor: 'grey.800' }}>
@@ -49,4 +51,3 @@ export default function RealtimeAssessment() {
     </Box>
   );
 }
-
