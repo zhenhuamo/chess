@@ -81,11 +81,34 @@ export const getSquareRenderer = ({
     );
 
     const overlay = hoverStyle(square);
+    // Classification badge icon for the last move destination
+    const clsIcon = (() => {
+      const cls = position?.eval?.moveClassification as MoveClassification | undefined;
+      const dest = position?.lastMove?.to;
+      if (!cls || dest !== square) return undefined;
+      const map: Record<string, string> = {
+        Splendid: 'splendid',
+        Perfect: 'perfect',
+        Excellent: 'excellent',
+        Best: 'best',
+        Okay: 'okay',
+        Inaccuracy: 'inaccuracy',
+        Mistake: 'mistake',
+        Blunder: 'blunder',
+        Forced: 'forced',
+        Opening: 'opening',
+      };
+      const key = map[String(cls)] || 'best';
+      return `/icons/${key}.png`;
+    })();
     return (
       <Box sx={{ position: "relative", width: "100%", height: "100%", ...style }} className={className}>
         {children}
         {moveIcon}
         <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", ...overlay }} />
+        {clsIcon && (
+          <Box component="img" src={clsIcon} alt="cls" sx={{ position: 'absolute', right: 4, top: 4, width: 18, height: 18, pointerEvents: 'none' }} />
+        )}
       </Box>
     );
   };

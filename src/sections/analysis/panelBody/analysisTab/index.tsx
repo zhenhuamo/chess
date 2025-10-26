@@ -7,6 +7,7 @@ import PlayersMetric from "./playersMetric";
 import MoveInfo from "./moveInfo";
 import Opening from "./opening";
 import EngineLines from "./engineLines";
+import RealtimeAssessment from "./realtimeAssessment";
 
 export default function AnalysisTab(props: GridProps) {
   const gameEval = useAtomValue(gameEvalAtom);
@@ -30,6 +31,7 @@ export default function AnalysisTab(props: GridProps) {
           <PlayersMetric title="Game Rating" whiteValue={Math.round(gameEval.estimatedElo.white)} blackValue={Math.round(gameEval.estimatedElo.black)} />
         )}
         <MoveInfo />
+        <RealtimeAssessment />
         <Opening />
         {isGameOver && (
           <Typography align="center" fontSize="0.85rem" noWrap sx={{ color: 'text.secondary' }}>
