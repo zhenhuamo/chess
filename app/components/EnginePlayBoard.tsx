@@ -3,7 +3,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, Square } from 'chess.js';
 import { useStockfish } from '../hooks/useStockfish';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography, Switch, FormControlLabel } from '@mui/material';
+import { Chessboard } from 'react-chessboard';
+import { useStockfishPool } from '../hooks/useStockfishPool';
+import { getEvaluateGameParams } from '@/src/lib/chess';
+import { getMovesClassification } from '@/src/lib/engine/helpers/moveClassification';
+import type { MoveClassification } from '@/src/types/enums';
+import { playSoundFromMove, playMoveSound } from '@/src/lib/sounds';
 import { usePlayState } from '../play/PlayState';
 import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
 
@@ -18,6 +24,8 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
   const [liveEval, setLiveEval] = useLocalStorage<boolean>('play-live-eval', true);
   const [userPlays, setUserPlays] = useLocalStorage<'w'|'b'>('play-side', 'w');
   const [hint, setHint] = useState<string | null>(null);
+  const pool = useStockfishPool();
+  const [clsByPly, setClsByPly] = useState<Record<number, MoveClassification | undefined>>({});
 
   useEffect(() => {
     if (isReady) setStrengthElo(elo);
@@ -80,11 +88,12 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
     if (!move || move === '(none)') return;
     try {
       const next = copyGame(game);
-      next.move({ from: move.slice(0, 2) as Square, to: move.slice(2, 4) as Square, promotion: (move[4] || undefined) as any });
+      const result = next.move({ from: move.slice(0, 2) as Square, to: move.slice(2, 4) as Square, promotion: (move[4] || undefined) as any });
       setGame(next);
       try { setLastPgn(next.pgn()); } catch {}
       // autosave draft after engine move
       persistDraft(next);
+      try { if (next.isCheck()) playMoveSound(); else playSoundFromMove(result as any); } catch {}
       setEngineThinking(false);
       if (typeof next.isGameOver === 'function' && next.isGameOver()) {
         try { setLastPgn(next.pgn()); } catch {}
@@ -98,11 +107,12 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
   const handleUserMove = (from: string, to: string) => {
     try {
       const next = copyGame(game);
-      next.move({ from: from as Square, to: to as Square, promotion: 'q' });
+      const result = next.move({ from: from as Square, to: to as Square, promotion: 'q' });
       setGame(next);
       try { setLastPgn(next.pgn()); } catch {}
       // autosave draft after player move
       persistDraft(next);
+      try { if (next.isCheck()) playMoveSound(); else playSoundFromMove(result as any); } catch {}
       if (typeof next.isGameOver === 'function' && next.isGameOver()) {
         try { setLastPgn(next.pgn()); } catch {}
         try { endGame(); } catch {}
@@ -142,6 +152,30 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
     analyzePreferCloud(game.fen(), 12);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.fen(), liveEval, engineThinking]);
+
+  // Lightweight move classification when live-eval is enabled
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!liveEval) return;
+      try {
+        const { fens, uciMoves } = getEvaluateGameParams(game as any);
+        if (!fens?.length) return;
+        const local = await pool.evaluateFensLocal(fens, { depth: 12, mpv: 3, workers: 1, threadsPerWorker: 1, variant: (engineVariant || 'sf17-lite') as any });
+        const positions: any[] = [];
+        for (let i = 0; i < fens.length; i++) {
+          const res: any = local[i] || { lines: [] };
+          positions.push({ bestMove: res.bestMove, lines: (res.lines||[]).map((l:any)=>({ pv: l.pv, cp: l.cp, mate: l.mate, depth: l.depth, multiPv: l.multiPv })) });
+        }
+        const arr = getMovesClassification(positions as any, uciMoves, fens);
+        if (cancelled) return;
+        const map: Record<number, MoveClassification | undefined> = {};
+        arr.forEach((p:any, idx:number) => { if (idx>0) map[idx] = p.moveClassification; });
+        setClsByPly(map);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [game, liveEval, engineVariant]);
 
   // Map piece to chicago SVG path under public/piece/chicago
   const pieceSrc = (piece: any): string | null => {
@@ -272,32 +306,8 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
     }
   };
 
-  const files = ['a','b','c','d','e','f','g','h'];
-  const ranks = ['8','7','6','5','4','3','2','1'];
-
-  // Responsive board sizing
+  // Responsive board sizing container
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [sq, setSq] = useState<number>(64);
-  useEffect(() => {
-    const calc = () => {
-      const w = wrapperRef.current?.offsetWidth || window.innerWidth;
-      const h = window.innerHeight;
-      // Leave space for side panels and paddings
-      const avail = Math.min(w - 80, h - 220);
-      const s = Math.max(48, Math.min(88, Math.floor((avail > 0 ? avail : 512) / 8)));
-      setSq(s);
-    };
-    calc();
-    let ro: any = undefined;
-    const Rz = (window as any).ResizeObserver;
-    if (Rz) {
-      ro = new Rz(() => calc());
-      if (wrapperRef.current) ro.observe(wrapperRef.current);
-    }
-    const onResize = () => calc();
-    window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('resize', onResize); try { ro && ro.disconnect && ro.disconnect(); } catch {} };
-  }, []);
 
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: { xs: 'wrap', md: 'nowrap' }, alignItems: 'flex-start' }} ref={wrapperRef}>
@@ -312,61 +322,54 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
             <Box sx={{ position: 'absolute', bottom: 6, left: 4, fontSize: 10, color: 'text.secondary' }}>{formatScore(info?.score, info?.mate)}</Box>
           </Box>
 
-          {/* Board with coordinates */}
-          <Box>
-            {/* files top */}
-            <Stack direction="row" spacing={0.5} sx={{ pl: 3.5, pr: 3.5, mb: 0.5 }}>
-              {files.map((f) => (
-                <Box key={`ft-${f}`} sx={{ width: sq, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'text.secondary' }}>{f}</Box>
-              ))}
-            </Stack>
-            <Stack direction="row" spacing={0.5}>
-              {/* ranks left */}
-              <Stack spacing={0.5} sx={{ mr: 0.5 }}>
-                {ranks.map((r) => (
-                  <Box key={`rl-${r}`} sx={{ width: 24, height: sq, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'text.secondary' }}>{r}</Box>
-                ))}
-              </Stack>
-              {/* squares */}
-              <Paper variant="outlined" sx={{ borderColor: 'divider', overflow: 'hidden' }}>
-                {ranks.map((rank) => (
-                  <Stack direction="row" key={`r-${rank}`}>
-                    {files.map((file) => {
-                      const square = `${file}${rank}` as Square;
-                      const isLight = (file.charCodeAt(0) + rank.charCodeAt(0)) % 2 === 0;
-                      const isSelected = square === selectedSquare;
-                      const isValidMove = validMoves.includes(square);
-                      const piece = game.get(square as Square);
-                      const hintFrom = hint && hint.slice(0,2)===square;
-                      const hintTo = hint && hint.slice(2,4)===square;
-                      const shadows: string[] = [];
-                      if (isValidMove) shadows.push('inset 0 0 0 4px rgba(16,185,129,.7)');
-                      if (kingToHighlight===square) shadows.push('inset 0 0 0 4px rgba(239,68,68,.9)');
-                      if (hintFrom) shadows.push('inset 0 0 0 4px rgba(99,102,241,.8)');
-                      if (hintTo) shadows.push('inset 0 0 0 4px rgba(79,70,229,.9)');
-                      return (
-                        <Box key={square} component="button" onClick={()=>onSquareClick(square)} title={square}
-                          sx={{ width: sq, height: sq, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid', borderColor: 'divider', bgcolor: isLight ? '#fde68a' : '#a16207', outline: isSelected ? '2px solid' : 'none', outlineColor: isSelected ? 'primary.main' : undefined, boxShadow: shadows.join(', '), cursor: 'pointer' }}>
-                          {piece ? <img src={pieceSrc(piece) || ''} alt={square} style={{ width: Math.round(sq*0.85), height: Math.round(sq*0.85) }} /> : null}
-                        </Box>
-                      );
-                    })}
-                  </Stack>
-                ))}
-              </Paper>
-              {/* ranks right */}
-              <Stack spacing={0.5} sx={{ ml: 0.5 }}>
-                {ranks.map((r) => (
-                  <Box key={`rr-${r}`} sx={{ width: 24, height: sq, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'text.secondary' }}>{r}</Box>
-                ))}
-              </Stack>
-            </Stack>
-            {/* files bottom */}
-            <Stack direction="row" spacing={0.5} sx={{ pl: 3.5, pr: 3.5, mt: 0.5 }}>
-              {files.map((f) => (
-                <Box key={`fb-${f}`} sx={{ width: sq, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'text.secondary' }}>{f}</Box>
-              ))}
-            </Stack>
+          {/* Board (react-chessboard v5) */}
+          <Box sx={{ width: 'min(78vh, 78vw)', maxWidth: 640 }}>
+            <Chessboard
+              key={`PlayBoard-${game.fen().split(' ')[0]}`}
+              options={{
+                id: 'PlayBoard',
+                position: game.fen().split(' ')[0],
+                boardOrientation: (userPlays === 'w' ? 'white' : 'black'),
+                boardStyle: { borderRadius: 5, boxShadow: '0 2px 10px rgba(0,0,0,0.5)' },
+                animationDurationInMs: 200,
+                // custom piece set (chicago) to match analysis board
+                pieces: ['wP','wB','wN','wR','wQ','wK','bP','bB','bN','bR','bQ','bK'].reduce((acc: any, code: string) => {
+                  acc[code] = () => <img src={`/piece/chicago/${code}.svg`} alt={code} style={{ width: '100%', height: '100%', objectFit: 'contain', userSelect: 'none', pointerEvents: 'none' }} />;
+                  return acc;
+                }, {}),
+                // dragging rules
+                canDragPiece: ({ piece }) => {
+                  if (engineThinking) return false;
+                  const side = piece.pieceType[0]; // 'w'|'b'
+                  const turn = game.turn();
+                  return (side === (turn==='w'?'w':'b')) && ((userPlays==='w' && turn==='w') || (userPlays==='b' && turn==='b'));
+                },
+                onPieceDrop: ({ piece, sourceSquare, targetSquare }) => {
+                  if (!targetSquare) return false;
+                  // route to our existing handler
+                  handleUserMove(sourceSquare, targetSquare);
+                  return true;
+                },
+                // clicking 选中->下子逻辑 + overlays
+                onSquareClick: ({ square }) => onSquareClick(square),
+                arrows: hint ? [{ startSquare: hint.slice(0,2), endSquare: hint.slice(2,4), color: '#22c55e' }] : [],
+                squareRenderer: ({ children, square }: any) => {
+                  const isSelected = square === selectedSquare;
+                  const isPlayable = validMoves.includes(square);
+                  const rings: string[] = [];
+                  if (isSelected) rings.push('inset 0 0 0 4px rgba(59,130,246,.7)');
+                  if (isPlayable) rings.push('inset 0 0 0 4px rgba(16,185,129,.8)');
+                  if (kingToHighlight === square) rings.push('inset 0 0 0 4px rgba(239,68,68,.9)');
+                  const style = rings.length ? { boxShadow: rings.join(', ') } : {};
+                  return (
+                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                      {children}
+                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', ...style }} />
+                    </div>
+                  );
+                },
+              }}
+            />
           </Box>
         </Stack>
 
@@ -383,12 +386,32 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
       <Paper variant="outlined" sx={{ p: 2, width: 320, minHeight: 220, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Typography variant="subtitle1">Status</Typography>
         <Typography variant="body2">{engineThinking? 'Engine thinking…':'Your move'}</Typography>
+        <FormControlLabel control={<Switch checked={liveEval} onChange={(_,v)=> setLiveEval(v)} size="small" />} label="Live evaluation" sx={{ mt: -1 }} />
         <Box>
           <Typography variant="caption" color="text.secondary">Eval</Typography>
           <Box sx={{ width: '100%', bgcolor: 'grey.800', borderRadius: 1, height: 8, overflow: 'hidden', mt: 0.5 }}>
             <Box sx={{ height: '100%', bgcolor: 'primary.main', width: `${getEvalBarWidth(info?.score, info?.mate)}%`, transition: 'width .2s ease' }} />
           </Box>
           <Typography variant="caption" color="text.secondary">{formatScore(info?.score, info?.mate)} · Depth {info?.depth ?? 0}</Typography>
+        </Box>
+        <Box sx={{ mt: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">Moves</Typography>
+          <Box sx={{ maxHeight: 220, overflow: 'auto', pr: 1 }}>
+            {game.history({ verbose: true }).map((m: any, idx: number) => {
+              const no = Math.floor(idx/2) + 1;
+              const isWhite = idx % 2 === 0;
+              const san = m.san as string;
+              const cls = liveEval ? clsByPly[idx+1] : undefined;
+              const c = cls ? ({ Brilliant:'#22d3ee', Great:'#38bdf8', Good:'#22c55e', Best:'#10b981', Okay:'#84cc16', Inaccuracy:'#eab308', Mistake:'#f97316', Blunder:'#ef4444' } as any)[String(cls)] || '#999' : '#999';
+              return (
+                <Stack key={idx} direction="row" spacing={1} alignItems="center" sx={{ py: 0.25 }}>
+                  {isWhite && <Typography variant="caption" sx={{ width: 20, textAlign:'right', color:'text.secondary' }}>{no}.</Typography>}
+                  <Box sx={{ width: 8, height: 8, bgcolor: c, borderRadius: 10 }} />
+                  <Typography variant="caption" sx={{ fontFamily:'monospace' }}>{san}</Typography>
+                </Stack>
+              );
+            })}
+          </Box>
         </Box>
       </Paper>
     </Box>

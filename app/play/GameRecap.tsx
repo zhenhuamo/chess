@@ -1,5 +1,5 @@
 "use client";
-import { Box, Button, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 import { usePlayState } from "./PlayState";
 import { Chess } from "chess.js";
@@ -7,17 +7,13 @@ import { useMemo, useState } from "react";
 import { getEvaluateGameParams } from "@/src/lib/chess";
 import { computeAccuracy } from "@/src/lib/engine/helpers/accuracy";
 import { computeEstimatedElo } from "@/src/lib/engine/helpers/estimateElo";
-import { useStockfishPool } from "../hooks/useStockfishPool";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useRouter } from "next/navigation";
 import { formatGameToDatabase, setGameHeaders } from "@/src/lib/chess";
 
 export default function GameRecap() {
   const { isGameInProgress, lastPgn, config } = usePlayState();
-  const pool = useStockfishPool();
   const router = useRouter();
-  const [analyzing, setAnalyzing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [series, setSeries] = useState<{ ply: number; cp: number; mate?: number }[]>([]);
   const [accuracy, setAccuracy] = useState<{ white: number; black: number } | undefined>(undefined);
   const [estimatedElo, setEstimatedElo] = useState<{ white: number; black: number } | undefined>(undefined);
@@ -25,38 +21,7 @@ export default function GameRecap() {
 
   if (isGameInProgress) return null;
 
-  const analyze = async () => {
-    if (!lastPgn) return;
-    setAnalyzing(true);
-    setProgress(0);
-    try {
-      const g = new Chess();
-      g.loadPgn(lastPgn);
-      const { fens } = getEvaluateGameParams(g as any);
-      const out: { ply: number; cp: number; mate?: number }[] = [];
-      const local = await pool.evaluateFensLocal(fens, { depth: 18, mpv: 3, workers: 2, threadsPerWorker: 2, variant: 'sf17-lite' as any, onProgress: (done)=> setProgress(Math.round(done / fens.length * 100)) });
-      const positions: any[] = [];
-      for (let i = 0; i < fens.length; i++) {
-        const fen = fens[i];
-        const res: any = local[i] || { lines: [] };
-        positions.push({ bestMove: res.bestMove, lines: (res.lines||[]).map((l:any)=>({ pv: l.pv, cp: l.cp, mate: l.mate, depth: l.depth, multiPv: l.multiPv })) });
-        const top = res?.lines?.[0];
-        let cp = 0; let mate: number | undefined;
-        if (top && typeof (top as any).mate === 'number') { mate = (top as any).mate as number; cp = mate > 0 ? 100000 : -100000; }
-        else if (top && typeof (top as any).cp === 'number') { const side = fen.split(' ')[1]; cp = side === 'w' ? (top as any).cp : -(top as any).cp; }
-        out.push({ ply: i + 1, cp, mate });
-      }
-      setSeries(out);
-      try { const acc = computeAccuracy(positions as any); setAccuracy({ white: Number(acc.white.toFixed(1)), black: Number(acc.black.toFixed(1)) }); } catch { setAccuracy(undefined); }
-      try { const est = computeEstimatedElo(positions as any); if (est) setEstimatedElo({ white: Math.round(est.white), black: Math.round(est.black) }); } catch { setEstimatedElo(undefined); }
-      // key moments: large swings
-      const diffs = out.map((p, i)=> i===0?0: Math.abs(p.cp - out[i-1].cp));
-      const picks = diffs.map((d,i)=>({d,i})).sort((a,b)=> b.d-a.d).filter(p=> p.d>=80).slice(0,10).map(p=> p.i);
-      setKeyMoments(picks);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
+  // Note: Full local analysis removed by request. Keep recap graph hidden until a future server-side analyzer is added.
 
   return (
     <Stack spacing={1} sx={{ width: '100%' }}>
@@ -64,7 +29,6 @@ export default function GameRecap() {
       {!lastPgn && <Typography variant="body2" color="text.secondary">No finished game yet.</Typography>}
       {lastPgn && !series.length && (
         <Stack spacing={1}>
-          <Button variant="outlined" onClick={analyze} disabled={analyzing}>{analyzing? `Analyzing ${progress}%` : 'Analyze full game'}</Button>
           <Button variant="contained" onClick={async () => {
             try {
               const g = new Chess();
@@ -137,7 +101,6 @@ export default function GameRecap() {
               router.push('/analyze');
             }
           }}>Open Game Analysis</Button>
-          {analyzing && <LinearProgress variant="determinate" value={progress} />}
         </Stack>
       )}
 

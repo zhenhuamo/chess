@@ -18,7 +18,8 @@ function PlayContent() {
         <EnginePlayBoard config={config} />
       </Box>
       <Box sx={{ width: { xs: '100%', md: 420 }, display: 'flex', justifyContent: 'center' }}>
-        <Paper variant="outlined" sx={{ mt: { xs: 0, md: '2.5em' }, p: 3, maxWidth: 400, width: '100%', backgroundColor: 'secondary.main', borderColor: 'primary.main', borderWidth: 2, boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+        {/* Make the side panel blend with the app theme (same as analysis right panel) */}
+        <Paper variant="outlined" sx={{ mt: { xs: 0, md: '2.5em' }, p: 3, maxWidth: 400, width: '100%', backgroundColor: 'background.paper', borderColor: 'divider', borderWidth: 1.5, boxShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
           <Stack spacing={3} alignItems="center">
             <GameInProgress />
             {!isGameInProgress && <GameSettingsButton />}
