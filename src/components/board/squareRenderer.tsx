@@ -17,14 +17,15 @@ export const getSquareRenderer = ({
   playableSquaresAtom: PrimitiveAtom<string[]>;
   showPlayerMoveIconAtom?: PrimitiveAtom<boolean>;
 }) => {
+  // Create a stable fallback atom once (do NOT create atoms inside render)
+  const fallbackShowIconAtom = atom<boolean>(false);
+  const resolvedShowIconAtom = showPlayerMoveIconAtom ?? fallbackShowIconAtom;
   // Return a real React component; hooks are called inside the component render,
   // not inside this factory function (avoids rules-of-hooks violations).
   return function SquareRenderer({ square, children, style, className }: any) {
     const clickedSquares = useAtomValue(clickedSquaresAtom);
     const playableSquares = useAtomValue(playableSquaresAtom);
-    const showPlayerMoveIcon = useAtomValue(
-      showPlayerMoveIconAtom || atom<boolean>(false)
-    );
+    const showPlayerMoveIcon = useAtomValue(resolvedShowIconAtom);
     const position = useAtomValue(currentPositionAtom);
 
     const lastMoveSquares = useMemo(() => {
