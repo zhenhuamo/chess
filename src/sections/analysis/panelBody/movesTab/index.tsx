@@ -144,7 +144,7 @@ export default function MovesTab(props: any) {
     }
   }, [goToMove, game, board]);
 
-  // Simple renderer for a vertical list - Traditional format with smooth scrolling
+  // Simple renderer for a vertical list with a draggable height handle
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -166,12 +166,8 @@ export default function MovesTab(props: any) {
       <Stack
         spacing={0.2}
         sx={{
-          // Make the moves list vertically resizable by user drag
-          resize: 'vertical',
           overflow:'auto',
-          height: 320,
-          minHeight: 160,
-          maxHeight: '70vh',
+          maxHeight: '60vh',
           pr: 1,
           // Custom scrollbar styling
           scrollBehavior: 'smooth',
