@@ -10,9 +10,22 @@ export default function LoadGame() {
   const [game, setGame] = useAtom(gameAtom);
   const [board, setBoard] = useAtom(boardAtom);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Track the moves history of the last loaded game to detect actual game changes
+  const lastGameMovesRef = useRef<string>("");
 
   useEffect(() => {
-    console.log('[LoadGame] Effect triggered, game.history()=', (game as any)?.history?.().length ?? 0);
+    // Only reset board when the actual game content changes (detected by comparing move history)
+    const currentGameMoves = game.history().join(',');
+
+    // If moves haven't changed, don't reset the board
+    // This prevents resetting the board when we're just navigating through moves
+    if (currentGameMoves === lastGameMovesRef.current && lastGameMovesRef.current !== "") {
+      return;
+    }
+
+    console.log('[LoadGame] Game moves changed, resetting board. Previous:', lastGameMovesRef.current.substring(0, 20), 'Current:', currentGameMoves.substring(0, 20));
+    lastGameMovesRef.current = currentGameMoves;
+
     // When a new game is loaded, reset the analysis board to that game's starting position.
     // If the PGN contains a FEN header (custom starting position), honor it; otherwise start from the default.
     try {
