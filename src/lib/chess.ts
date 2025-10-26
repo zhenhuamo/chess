@@ -153,14 +153,18 @@ export const getEvaluationBarValue = (
   position: PositionEval
 ): { whiteBarPercentage: number; label: string } => {
   const whiteBarPercentage = getPositionWinPercentage(position);
-  const bestLine = position.lines[0];
+  // Some evaluation payloads may temporarily have no lines (eg. partial engine result)
+  const bestLine = position?.lines?.[0];
+  if (!bestLine) {
+    return { whiteBarPercentage, label: "0.0" };
+  }
 
   if (bestLine.mate) {
     return { label: `M${Math.abs(bestLine.mate)}`, whiteBarPercentage };
   }
 
   const cp = bestLine.cp;
-  if (!cp) return { whiteBarPercentage, label: "0.0" };
+  if (typeof cp !== 'number' || Number.isNaN(cp)) return { whiteBarPercentage, label: "0.0" };
 
   const pEval = Math.abs(cp) / 100;
   let label = pEval.toFixed(1);
