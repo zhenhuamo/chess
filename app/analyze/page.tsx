@@ -135,7 +135,8 @@ function GameAnalysisInner() {
                 <Box sx={{ flexShrink: 0 }}>
                   <AnalysisTab role="tabpanel" id="tabContent0" />
                 </Box>
-                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                {/* Make Moves area internally scrollable so long lists don't get clipped */}
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <MovesTab role="tabpanel" id="tabContent1" />
                 </Box>
               </Box>
