@@ -23,7 +23,8 @@ export default function AnalysisTab(props: GridProps) {
 
   return (
     <Grid display="flex" width="100%" flexDirection="column" sx={{ gap: 1.5, ...(props.sx || {}), ...(props.hidden ? { display: 'none' } : {}) }}>
-      <Stack justifyContent="flex-start" alignItems="stretch" spacing={1}>
+      {/* Make upper info area denser to reduce vertical crowding */}
+      <Stack justifyContent="flex-start" alignItems="stretch" spacing={0.75}>
         {gameEval && (
           <PlayersMetric title="Accuracy" whiteValue={`${gameEval.accuracy.white.toFixed(1)} %`} blackValue={`${gameEval.accuracy.black.toFixed(1)} %`} />
         )}
@@ -40,7 +41,7 @@ export default function AnalysisTab(props: GridProps) {
         )}
       </Stack>
       {gameEval && (
-        <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+        <Box sx={{ maxHeight: 220, overflow: 'auto' }}>
           <EngineLines />
         </Box>
       )}

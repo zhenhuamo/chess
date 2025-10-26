@@ -305,13 +305,16 @@ export default function MovesTab(props: any) {
           </Box>
         </Box>
 
-        {/* Right: Classifications */}
-        <Box sx={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 0.5, flexShrink: 0, overflow: 'auto', minWidth: 160 }}>
+        {/* Right: Classifications - split into two columns (You vs Engine) */}
+        <Box sx={{ flex: 0.9, display: 'flex', flexDirection: 'column', gap: 0.5, flexShrink: 0, overflow: 'hidden', minWidth: 200 }}>
           <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.65rem', color: 'text.secondary', flexShrink: 0 }}>Classification</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, overflow: 'auto', flex: 1, minHeight: 0 }}>
-            <SummaryRow side={labels.player} data={summary.player || {}} />
-            <Box sx={{ my: 0.2, borderTop: 1, borderColor: 'divider' }} />
-            <SummaryRow side={labels.engine} data={summary.engine || {}} />
+          <Box sx={{ display: 'flex', gap: 1, overflow: 'hidden', flex: 1, minHeight: 0 }}>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              <SummaryRow side={labels.player} data={summary.player || {}} />
+            </Box>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              <SummaryRow side={labels.engine} data={summary.engine || {}} />
+            </Box>
           </Box>
         </Box>
       </Grid>

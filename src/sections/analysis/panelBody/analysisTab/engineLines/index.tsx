@@ -21,15 +21,14 @@ export default function EngineLines(props: GridProps) {
       <Stack spacing={0.5} sx={{ width: '100%' }}>
         <Typography variant="caption" color="text.secondary">Engine Lines</Typography>
         <Box sx={{
-          // default更高，直接能看到 PV#1~#3；可向上拖拽扩展
-          height: 280,
-          minHeight: 180,
-          maxHeight: '60vh',
+          height: 220,
+          minHeight: 160,
+          maxHeight: '50vh',
           resize: 'vertical',
           overflow: 'auto',
           pr: 0.5,
           borderRadius: 1,
-          border: '1px dashed',
+          border: '1px solid',
           borderColor: 'divider',
         }}>
           <Stack spacing={1} sx={{ width: '100%' }}>
