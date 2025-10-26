@@ -6,7 +6,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { Box, Button, Paper, Stack, Typography, Switch, FormControlLabel, Divider } from '@mui/material';
 import { Chessboard } from 'react-chessboard';
 import { useStockfishPool } from '../hooks/useStockfishPool';
-import { getEvaluateGameParams, moveLineUciToSan } from '@/src/lib/chess';
+import { getEvaluateGameParams } from '@/src/lib/chess';
 import { getMovesClassification } from '@/src/lib/engine/helpers/moveClassification';
 import type { MoveClassification } from '@/src/types/enums';
 import { playSoundFromMove, playMoveSound } from '@/src/lib/sounds';
@@ -31,7 +31,6 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
   const hintRequestedRef = useRef(false);
   const pool = useStockfishPool();
   const [clsByPly, setClsByPly] = useState<Record<number, MoveClassification | undefined>>({});
-  const [bestByPly, setBestByPly] = useState<Record<number, string | undefined>>({});
 
   useEffect(() => {
     if (isReady) setStrengthElo(elo);
@@ -159,7 +158,7 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.fen(), liveEval, engineThinking]);
 
-  // Lightweight move classification when live-eval is enabled
+  // Lightweight move classification when live-eval is enabled (for moves list coloring)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -176,17 +175,11 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
         const arr = getMovesClassification(positions as any, uciMoves, fens);
         if (cancelled) return;
         const clsMap: Record<number, MoveClassification | undefined> = {};
-        const bestMap: Record<number, string | undefined> = {};
         for (let idx = 1; idx < arr.length; idx++) {
           const p = arr[idx] as any;
           clsMap[idx] = p?.moveClassification;
-          const bestUci = (arr[idx-1] as any)?.bestMove as string | undefined; // best move before this ply
-          if (bestUci) {
-            try { bestMap[idx] = moveLineUciToSan(fens[idx-1])(bestUci); } catch {}
-          }
         }
         setClsByPly(clsMap);
-        setBestByPly(bestMap);
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -388,18 +381,10 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
                   if (isPlayable) rings.push('inset 0 0 0 4px rgba(16,185,129,.8)');
                   if (kingToHighlight === square) rings.push('inset 0 0 0 4px rgba(239,68,68,.9)');
                   const style = rings.length ? { boxShadow: rings.join(', ') } : {};
-                  // Badge for the last move classification
-                  const hist = game.history({ verbose: true }) as any[];
-                  const last = hist[hist.length - 1];
-                  const lastDest: string | undefined = last?.to;
-                  const lastCls = clsByPly[hist.length];
-                  const iconMap: any = { Splendid:'splendid', Perfect:'perfect', Excellent:'excellent', Best:'best', Okay:'okay', Inaccuracy:'inaccuracy', Mistake:'mistake', Blunder:'blunder', Forced:'forced', Opening:'opening' };
-                  const badge = (lastDest === square && lastCls) ? `/icons/${iconMap[String(lastCls)]||'best'}.png` : undefined;
                   return (
                     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                       {children}
                       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', ...style }} />
-                      {badge ? (<img src={badge} alt="cls" style={{ position:'absolute', right: 4, top: 4, width: 18, height: 18, pointerEvents:'none' }} />) : null}
                     </div>
                   );
                 },
@@ -430,29 +415,7 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
           </Box>
           <Typography variant="caption" color="text.secondary">{formatScore(info?.score, info?.mate)} · Depth {info?.depth ?? 0}</Typography>
         </Box>
-        {/* Realtime move assessment card */}
-        {(() => {
-          const hist = game.history({ verbose: true }) as any[];
-          const ply = hist.length;
-          if (!liveEval || ply === 0) return null;
-          const last = hist[ply-1];
-          const cls = clsByPly[ply];
-          if (!cls || !last?.san) return null;
-          const colorMap: any = { Splendid:'#22d3ee', Perfect:'#38bdf8', Excellent:'#22c55e', Best:'#10b981', Okay:'#84cc16', Inaccuracy:'#eab308', Mistake:'#f97316', Blunder:'#ef4444', Forced:'#94a3b8', Opening:'#94a3b8' };
-          const iconMap: any = { Splendid:'splendid', Perfect:'perfect', Excellent:'excellent', Best:'best', Okay:'okay', Inaccuracy:'inaccuracy', Mistake:'mistake', Blunder:'blunder', Forced:'forced', Opening:'opening' };
-          const bestSan = bestByPly[ply];
-          return (
-            <Box sx={{ mt: 1.25, p: 1, borderRadius: 1.5, bgcolor: 'grey.900', border: '1px solid', borderColor: 'grey.800' }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <img src={`/icons/${iconMap[String(cls)]||'best'}.png`} alt="cls" width={18} height={18} />
-                <Typography variant="body2" sx={{ color: colorMap[String(cls)]||'inherit', fontWeight: 700 }}>{last.san} is {String(cls).toLowerCase()}</Typography>
-              </Stack>
-              {bestSan && (
-                <Typography variant="body2" sx={{ color: '#16a34a', mt: 0.5 }}>The best move was {bestSan}</Typography>
-              )}
-            </Box>
-          );
-        })()}
+        {/* Realtime assessment card removed per request */}
         {/* Moves split columns: You vs Engine */}
         <Box sx={{ mt: 1.5 }}>
           <Typography variant="caption" color="text.secondary">Moves</Typography>
