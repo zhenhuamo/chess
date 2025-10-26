@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, Square } from 'chess.js';
 import { useStockfish } from '../hooks/useStockfish';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { Box, Button, Paper, Stack, Typography, Switch, FormControlLabel } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography, Switch, FormControlLabel, Divider } from '@mui/material';
 import { Chessboard } from 'react-chessboard';
 import { useStockfishPool } from '../hooks/useStockfishPool';
 import { getEvaluateGameParams } from '@/src/lib/chess';
@@ -11,6 +11,9 @@ import { getMovesClassification } from '@/src/lib/engine/helpers/moveClassificat
 import type { MoveClassification } from '@/src/types/enums';
 import { playSoundFromMove, playMoveSound } from '@/src/lib/sounds';
 import { usePlayState } from '../play/PlayState';
+import GameInProgress from '../play/GameInProgress';
+import GameSettingsButton from '../play/GameSettingsButton';
+import GameRecap from '../play/GameRecap';
 import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
 
 type EngineVariant = 'sf17'|'sf17-lite'|'sf17-single'|'sf161'|'sf161-lite'|'sf161-single'|'sf16-nnue'|'sf16-nnue-single'|'sf11';
@@ -22,6 +25,7 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
   const [elo, setElo] = useLocalStorage<number>('engine-elo', 1600);
   const { isReady, analyze, analyzePreferCloud, analysis, setStrengthElo, threads, setThreads, engineVariant, setEngineVariant, info } = useStockfish();
   const [liveEval, setLiveEval] = useLocalStorage<boolean>('play-live-eval', true);
+  const [showHintArrow, setShowHintArrow] = useLocalStorage<boolean>('play-show-hint', true);
   const [userPlays, setUserPlays] = useLocalStorage<'w'|'b'>('play-side', 'w');
   const [hint, setHint] = useState<string | null>(null);
   const pool = useStockfishPool();
@@ -323,7 +327,7 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
           </Box>
 
           {/* Board (react-chessboard v5) */}
-          <Box sx={{ width: 'min(78vh, 78vw)', maxWidth: 640 }}>
+          <Box sx={{ width: 'min(86vh, 86vw)', maxWidth: 760 }}>
             <Chessboard
               key={`PlayBoard-${game.fen().split(' ')[0]}`}
               options={{
@@ -352,7 +356,7 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
                 },
                 // clicking 选中->下子逻辑 + overlays
                 onSquareClick: ({ square }) => onSquareClick(square),
-                arrows: hint ? [{ startSquare: hint.slice(0,2), endSquare: hint.slice(2,4), color: '#22c55e' }] : [],
+                arrows: (showHintArrow && hint) ? [{ startSquare: hint.slice(0,2), endSquare: hint.slice(2,4), color: '#22c55e' }] : [],
                 squareRenderer: ({ children, square }: any) => {
                   const isSelected = square === selectedSquare;
                   const isPlayable = validMoves.includes(square);
@@ -383,10 +387,11 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
       </Box>
 
       {/* Right: small status panel */}
-      <Paper variant="outlined" sx={{ p: 2, width: 320, minHeight: 220, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Paper variant="outlined" sx={{ p: 2, width: 360, minHeight: 220, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Typography variant="subtitle1">Status</Typography>
         <Typography variant="body2">{engineThinking? 'Engine thinking…':'Your move'}</Typography>
         <FormControlLabel control={<Switch checked={liveEval} onChange={(_,v)=> setLiveEval(v)} size="small" />} label="Live evaluation" sx={{ mt: -1 }} />
+        <FormControlLabel control={<Switch checked={showHintArrow} onChange={(_,v)=> setShowHintArrow(v)} size="small" />} label="Show hint arrow" sx={{ mt: -1 }} />
         <Box>
           <Typography variant="caption" color="text.secondary">Eval</Typography>
           <Box sx={{ width: '100%', bgcolor: 'grey.800', borderRadius: 1, height: 8, overflow: 'hidden', mt: 0.5 }}>
@@ -394,25 +399,49 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
           </Box>
           <Typography variant="caption" color="text.secondary">{formatScore(info?.score, info?.mate)} · Depth {info?.depth ?? 0}</Typography>
         </Box>
+        {/* Moves split columns: You vs Engine */}
         <Box sx={{ mt: 1.5 }}>
           <Typography variant="caption" color="text.secondary">Moves</Typography>
-          <Box sx={{ maxHeight: 220, overflow: 'auto', pr: 1 }}>
-            {game.history({ verbose: true }).map((m: any, idx: number) => {
-              const no = Math.floor(idx/2) + 1;
-              const isWhite = idx % 2 === 0;
-              const san = m.san as string;
-              const cls = liveEval ? clsByPly[idx+1] : undefined;
-              const c = cls ? ({ Brilliant:'#22d3ee', Great:'#38bdf8', Good:'#22c55e', Best:'#10b981', Okay:'#84cc16', Inaccuracy:'#eab308', Mistake:'#f97316', Blunder:'#ef4444' } as any)[String(cls)] || '#999' : '#999';
-              return (
-                <Stack key={idx} direction="row" spacing={1} alignItems="center" sx={{ py: 0.25 }}>
-                  {isWhite && <Typography variant="caption" sx={{ width: 20, textAlign:'right', color:'text.secondary' }}>{no}.</Typography>}
-                  <Box sx={{ width: 8, height: 8, bgcolor: c, borderRadius: 10 }} />
-                  <Typography variant="caption" sx={{ fontFamily:'monospace' }}>{san}</Typography>
-                </Stack>
-              );
-            })}
+          <Box sx={{ maxHeight: 300, overflow: 'auto', pr: 1 }}>
+            <Stack direction="row" spacing={1}>
+              <Typography variant="caption" sx={{ flex: 1, fontWeight: 600, color:'text.secondary' }}>You</Typography>
+              <Typography variant="caption" sx={{ flex: 1, fontWeight: 600, color:'text.secondary' }}>Engine</Typography>
+            </Stack>
+            <Divider sx={{ my: 0.5 }} />
+            <Stack spacing={0.25}>
+              {(() => {
+                const hist = game.history({ verbose: true }) as any[];
+                const rows: Array<{ no:number; w?: any; b?: any }> = [];
+                for (let i=0;i<hist.length;i++) { const mv=hist[i]; const no=Math.floor(i/2)+1; const r=rows[no-1]||{no}; (i%2===0? (r.w=mv) : (r.b=mv)); rows[no-1]=r; }
+                return rows.map((r, idx) => {
+                  const wSan = r.w?.san as string|undefined;
+                  const bSan = r.b?.san as string|undefined;
+                  const wCls = liveEval ? clsByPly[idx*2+1] : undefined; const bCls = liveEval ? clsByPly[idx*2+2] : undefined;
+                  const colorMap: any = { Brilliant:'#22d3ee', Great:'#38bdf8', Good:'#22c55e', Best:'#10b981', Okay:'#84cc16', Inaccuracy:'#eab308', Mistake:'#f97316', Blunder:'#ef4444' };
+                  const wColor = wCls ? (colorMap[String(wCls)]||'#999') : '#999';
+                  const bColor = bCls ? (colorMap[String(bCls)]||'#999') : '#999';
+                  return (
+                    <Stack key={r.no} direction="row" spacing={1} alignItems="center">
+                      <Typography variant="caption" sx={{ width: 16, color:'text.secondary', textAlign:'right' }}>{r.no}.</Typography>
+                      <Stack sx={{ flex:1 }} direction="row" spacing={0.5} alignItems="center">
+                        {wSan ? (<><Box sx={{ width: 8, height: 8, bgcolor: wColor, borderRadius: 10 }} /><Typography variant="caption" sx={{ fontFamily:'monospace' }}>{wSan}</Typography></>) : <Typography variant="caption" color="text.disabled">–</Typography>}
+                      </Stack>
+                      <Stack sx={{ flex:1 }} direction="row" spacing={0.5} alignItems="center">
+                        {bSan ? (<><Box sx={{ width: 8, height: 8, bgcolor: bColor, borderRadius: 10 }} /><Typography variant="caption" sx={{ fontFamily:'monospace' }}>{bSan}</Typography></>) : <Typography variant="caption" color="text.disabled">–</Typography>}
+                      </Stack>
+                    </Stack>
+                  );
+                });
+              })()}
+            </Stack>
           </Box>
         </Box>
+
+        {/* Integrated settings + recap to form a unified sidebar */}
+        <Divider sx={{ my: 1 }} />
+        <GameInProgress />
+        <GameSettingsButton />
+        <GameRecap />
       </Paper>
     </Box>
   );
