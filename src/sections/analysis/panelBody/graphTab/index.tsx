@@ -26,16 +26,7 @@ export default function GraphTab(props: GridProps) {
     [gameEval]
   );
 
-  const bestDotIndices = useMemo(() => {
-    const bestItems = chartData.filter((item) => item.moveClassification === MoveClassification.Best);
-    const count = Math.ceil(bestItems.length * 0.15);
-    const indices = bestItems.map((item) => item.moveNb);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    return new Set(indices.slice(0, count));
-  }, [chartData]);
+  // Always show dots for moves having a classification
 
   const boardMoveColor = currentPosition.eval?.moveClassification
     ? CLASSIFICATION_COLORS[currentPosition.eval.moveClassification]
@@ -43,13 +34,9 @@ export default function GraphTab(props: GridProps) {
 
   const renderDot = useCallback((props: DotProps & { payload?: ChartItemData }): ReactElement<SVGElement> => {
     const payload = props.payload;
-    const moveClass = payload?.moveClassification;
-    if (!moveClass) return <svg key={props.key as any} />;
-    if ([MoveClassification.Splendid, MoveClassification.Perfect, MoveClassification.Blunder, MoveClassification.Mistake].includes(moveClass) || (moveClass === MoveClassification.Best && bestDotIndices.has(payload.moveNb))) {
-      return <CustomDot {...props} key={props.key as any} payload={payload} />;
-    }
-    return <svg key={props.key as any} />;
-  }, [bestDotIndices]);
+    if (!payload?.moveClassification) return <svg key={props.key as any} />;
+    return <CustomDot {...props} key={props.key as any} payload={payload} />;
+  }, []);
 
   if (!gameEval) return null;
 
