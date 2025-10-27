@@ -17,7 +17,7 @@ import GameRecap from '../play/GameRecap';
 import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
 
 type EngineVariant = 'sf17'|'sf17-lite'|'sf17-single'|'sf161'|'sf161-lite'|'sf161-single'|'sf16-nnue'|'sf16-nnue-single'|'sf11';
-export default function EnginePlayBoard({ config }: { config?: { variant?: EngineVariant; threads?: number; elo?: number; youPlay?: 'w'|'b'; starting?: string } }) {
+export default function EnginePlayBoard({ config, embedInCard = false }: { config?: { variant?: EngineVariant; threads?: number; elo?: number; youPlay?: 'w'|'b'; starting?: string }, embedInCard?: boolean }) {
   const [game, setGame] = useState(new Chess());
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [validMoves, setValidMoves] = useState<string[]>([]);
@@ -402,12 +402,17 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
         </Stack>
       </Box>
 
-      {/* Right: small status panel */}
-      <Paper variant="outlined" sx={{ p: 2, width: 360, minHeight: 220, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Typography variant="subtitle1">Status</Typography>
-        <Typography variant="body2">{engineThinking? 'Engine thinking…':'Your move'}</Typography>
-        <FormControlLabel control={<Switch checked={liveEval} onChange={(_,v)=> setLiveEval(v)} size="small" />} label="Live evaluation" sx={{ mt: -1 }} />
-        <FormControlLabel control={<Switch checked={showHintArrow} onChange={(_,v)=> setShowHintArrow(v)} size="small" />} label="Show hint arrow" sx={{ mt: -1 }} />
+      {/* Right: status panel (can be embedded inside an outer card to look unified) */}
+      {(() => {
+        const Right = embedInCard ? Box : Paper;
+        const RightAny: any = Right as any;
+        const rightProps = embedInCard ? { sx: { p: 2, width: 360, minHeight: 220, display: 'flex', flexDirection: 'column', gap: 1 } } : { variant: 'outlined' as const, sx: { p: 2, width: 360, minHeight: 220, display: 'flex', flexDirection: 'column', gap: 1 } };
+        return (
+          <RightAny {...rightProps}>
+          <Typography variant="subtitle1">Status</Typography>
+          <Typography variant="body2">{engineThinking? 'Engine thinking…':'Your move'}</Typography>
+          <FormControlLabel control={<Switch checked={liveEval} onChange={(_,v)=> setLiveEval(v)} size="small" />} label="Live evaluation" sx={{ mt: -1 }} />
+          <FormControlLabel control={<Switch checked={showHintArrow} onChange={(_,v)=> setShowHintArrow(v)} size="small" />} label="Show hint arrow" sx={{ mt: -1 }} />
         <Box>
           <Typography variant="caption" color="text.secondary">Eval</Typography>
           <Box sx={{ width: '100%', bgcolor: 'grey.800', borderRadius: 1, height: 8, overflow: 'hidden', mt: 0.5 }}>
@@ -455,11 +460,13 @@ export default function EnginePlayBoard({ config }: { config?: { variant?: Engin
         </Box>
 
         {/* Integrated settings + recap to form a unified sidebar */}
-        <Divider sx={{ my: 1 }} />
-        <GameInProgress />
-        <GameSettingsButton />
-        <GameRecap />
-      </Paper>
+            <Divider sx={{ my: 1 }} />
+            <GameInProgress />
+            <GameSettingsButton />
+            <GameRecap />
+          </RightAny>
+        );
+      })()}
     </Box>
   );
 }
