@@ -134,18 +134,7 @@ function GameAnalysisInner() {
                     <GraphTab role="tabpanel" id="tabContent2" />
                   </Box>
                 )}
-                {/* Moves is the primary area; keep expanded and scrollable */}
-                <Accordion defaultExpanded disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle2">Moves</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Box sx={{ maxHeight: '42vh', overflow: 'auto' }}>
-                      <MovesTab role="tabpanel" id="tabContent1" />
-                    </Box>
-                  </AccordionDetails>
-                </Accordion>
-                {/* Summary + Engine Lines merged into one section */}
+                {/* Summary + Engine Lines merged into one section (moved above Moves) */}
                 <Accordion defaultExpanded={false} disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Typography variant="subtitle2">Summary & Engine Lines</Typography>
@@ -157,6 +146,17 @@ function GameAnalysisInner() {
                         <EngineLines />
                       </Box>
                     )}
+                  </AccordionDetails>
+                </Accordion>
+                {/* Moves is the primary area; keep expanded and scrollable */}
+                <Accordion defaultExpanded disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle2">Moves</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Box sx={{ maxHeight: '42vh', overflow: 'auto' }}>
+                      <MovesTab role="tabpanel" id="tabContent1" />
+                    </Box>
                   </AccordionDetails>
                 </Accordion>
               </Box>
