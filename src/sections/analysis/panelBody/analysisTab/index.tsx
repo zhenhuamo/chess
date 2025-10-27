@@ -40,11 +40,7 @@ export default function AnalysisTab(props: GridProps) {
           </Typography>
         )}
       </Stack>
-      {gameEval && (
-        <Box sx={{ maxHeight: 220, overflow: 'auto' }}>
-          <EngineLines />
-        </Box>
-      )}
+      {/* Engine lines moved to its own Accordion in the right panel layout to avoid duplication */}
     </Grid>
   );
 }
