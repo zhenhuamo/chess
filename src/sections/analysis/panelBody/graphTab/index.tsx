@@ -53,7 +53,7 @@ export default function GraphTab(props: GridProps) {
             <XAxis dataKey="moveNb" hide stroke="red" />
             <YAxis domain={[0, 20]} hide />
             <Tooltip content={<CustomTooltip />} isAnimationActive={false} cursor={{ stroke: "grey", strokeWidth: 2, strokeOpacity: 0.3 }} />
-            <Area type="monotone" dataKey="value" stroke="none" fill="#ffffff" fillOpacity={1} dot={renderDot} activeDot={<CustomDot />} isAnimationActive={false} />
+            <Area type="linear" dataKey="value" stroke="none" fill="#ffffff" fillOpacity={1} dot={renderDot} activeDot={<CustomDot />} isAnimationActive={false} connectNulls baseValue={0} />
             <ReferenceLine y={10} stroke="grey" strokeWidth={2} strokeOpacity={0.4} />
             <ReferenceLine x={currentPosition.currentMoveIdx} stroke={boardMoveColor} strokeWidth={4} strokeOpacity={0.6} />
           </AreaChart>
