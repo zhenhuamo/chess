@@ -2,6 +2,7 @@ import { EvaluateGameParams, LineEval, PositionEval } from "@/types/eval";
 import { Game, Player } from "@/types/game";
 import { Chess, PieceSymbol, Square } from "chess.js";
 import { getPositionWinPercentage } from "./engine/helpers/winPercentage";
+import { PGN_EVENT_DEFAULT, PGN_SITE_DEFAULT } from "@/src/config/site";
 import { Color } from "@/types/enums";
 type Piece = string;
 
@@ -76,8 +77,9 @@ export const setGameHeaders = (
   game: Chess,
   params: { white?: Player; black?: Player; resigned?: Color } = {}
 ): Chess => {
-  game.setHeader("Event", "Chesskit Game");
-  game.setHeader("Site", "Chesskit.org");
+  // Use site-configurable defaults for headers.
+  game.setHeader("Event", PGN_EVENT_DEFAULT);
+  game.setHeader("Site", PGN_SITE_DEFAULT);
   game.setHeader(
     "Date",
     new Date().toISOString().split("T")[0].replace(/-/g, ".")
