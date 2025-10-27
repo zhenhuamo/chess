@@ -1,12 +1,14 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { Divider, Tab, Tabs, useMediaQuery, useTheme, Box } from "@mui/material";
+import { Divider, Tab, Tabs, useMediaQuery, useTheme, Box, Accordion, AccordionSummary, AccordionDetails, Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 const Grid: any = Box;
 import BoardContainer from "@/src/sections/analysis/board";
 import PanelHeader from "@/src/sections/analysis/panelHeader";
 import PanelToolBar from "@/src/sections/analysis/panelToolbar";
 import AnalysisTab from "@/src/sections/analysis/panelBody/analysisTab";
+import EngineLines from "@/src/sections/analysis/panelBody/analysisTab/engineLines";
 import GraphTab from "@/src/sections/analysis/panelBody/graphTab";
 import MovesTab from "@/src/sections/analysis/panelBody/movesTab";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -125,20 +127,46 @@ function GameAnalysisInner() {
                 <PanelHeader />
                 <Divider sx={{ marginX: "5%", marginTop: 2.5 }} />
               </Box>
-              {/* Desktop: Show all tabs content at once - Graph first */}
-              <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {/* Desktop: Compact with small graph + accordions */}
+              <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {gameEval && (
                   <Box sx={{ flexShrink: 0 }}>
                     <GraphTab role="tabpanel" id="tabContent2" />
                   </Box>
                 )}
-                <Box sx={{ flexShrink: 0 }}>
-                  <AnalysisTab role="tabpanel" id="tabContent0" />
-                </Box>
-                {/* Make Moves area internally scrollable so long lists don't get clipped */}
-                <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                  <MovesTab role="tabpanel" id="tabContent1" />
-                </Box>
+                {/* Moves is the primary area; keep expanded and scrollable */}
+                <Accordion defaultExpanded disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle2">Moves</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Box sx={{ maxHeight: '42vh', overflow: 'auto' }}>
+                      <MovesTab role="tabpanel" id="tabContent1" />
+                    </Box>
+                  </AccordionDetails>
+                </Accordion>
+                {/* Summary (accuracy, opening, current move quality) */}
+                <Accordion defaultExpanded={false} disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle2">Summary</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <AnalysisTab role="tabpanel" id="tabContent0" />
+                  </AccordionDetails>
+                </Accordion>
+                {/* Engine Lines collapsed by default to reduce clutter */}
+                {gameEval && (
+                  <Accordion defaultExpanded={false} disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="subtitle2">Engine Lines</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Box sx={{ maxHeight: '32vh', overflow: 'auto' }}>
+                        <EngineLines />
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                )}
               </Box>
               <Box width="100%">
                 <Divider sx={{ marginX: "5%", marginBottom: 1.5 }} />
