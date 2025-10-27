@@ -32,7 +32,7 @@ export default function LandingPage() {
                 <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></div>
               </button>
               <Link
-                href="/game"
+                href="/play"
                 className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-lg font-semibold transition transform hover:scale-105 shadow-lg hover:shadow-blue-500/50"
               >
                 Play
@@ -83,7 +83,7 @@ export default function LandingPage() {
                       🔬 FEN Position
                     </button>
                     <Link
-                      href="/game?mode=practice"
+                      href="/play"
                       className="pb-3 px-4 font-semibold text-slate-400 hover:text-slate-300 transition"
                     >
                       🎮 Play vs AI
@@ -248,7 +248,7 @@ export default function LandingPage() {
             Start analyzing chess positions with Stockfish AI. Learn, practice, and master the game—completely free.
           </p>
           <Link
-            href="/game"
+            href="/play"
             className="group inline-block px-10 py-4 bg-white text-blue-600 font-bold rounded-xl text-lg hover:bg-slate-100 transition transform hover:scale-110 shadow-xl hover:shadow-white/50"
           >
             <span className="flex items-center gap-2">
