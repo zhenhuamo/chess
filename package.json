@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postbuild": "rm -rf .vercel/output/static/engines .vercel/output/static/public/engines || true"
   },
   "keywords": [],
   "author": "",
