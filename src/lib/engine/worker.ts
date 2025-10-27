@@ -1,10 +1,26 @@
 import { EngineWorker } from "@/types/engine";
+import { ENGINE_BASE_URL } from "@/src/config/site";
 import { isIosDevice, isMobileDevice } from "./shared";
+
+// Resolve engine worker URL against a configurable base. When enginePath is
+// relative (e.g. "engines/stockfish-17/stockfish-17.js"), it is joined with
+// ENGINE_BASE_URL so we can host heavy assets on R2/CDN. Absolute URLs are
+// used as-is.
+const resolveEngineUrl = (enginePath: string): string => {
+  try {
+    // Absolute URL
+    new URL(enginePath);
+    return enginePath;
+  } catch {}
+  const path = enginePath.replace(/^\/+/, '');
+  const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
+  return base + path.replace(/^engines\//, '');
+};
 
 export const getEngineWorker = (enginePath: string): EngineWorker => {
   console.log(`Creating worker from ${enginePath}`);
-
-  const worker = new window.Worker(enginePath);
+  const url = resolveEngineUrl(enginePath);
+  const worker = new window.Worker(url);
 
   const engineWorker: EngineWorker = {
     isReady: false,

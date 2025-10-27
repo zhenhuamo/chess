@@ -12,3 +12,10 @@ export const PGN_SITE_DEFAULT =
 
 // Canonical site URL used for sitemap/robots and absolute links
 export const SITE_URL = 'https://chess-analysis.org';
+
+// Base URL for engine assets (JS/WASM). Default serves from /public/engines.
+// For Cloudflare R2 offloading, set to your R2 custom domain, e.g.:
+// NEXT_PUBLIC_ENGINE_BASE_URL="https://assets.chess-analysis.org/engines/"
+export const ENGINE_BASE_URL = (
+  process.env.NEXT_PUBLIC_ENGINE_BASE_URL || 'https://cacle.chess-analysis.org/engines/'
+).replace(/\/$/, '/');
