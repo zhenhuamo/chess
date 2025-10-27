@@ -19,7 +19,10 @@
     "noEmit": true,
     "jsx": "preserve",
     "paths": {
-      "@/*": ["*", "src/*"]
+      "@/*": [
+        "*",
+        "src/*"
+      ]
     },
     "types": [
       "node"
@@ -34,19 +37,20 @@
     ]
   },
   "include": [
+    "next-env.d.ts",
     "src/app/**/*.ts",
     "src/app/**/*.tsx",
-    "src/lib/**/*.ts",
-    "src/lib/**/*.tsx",
-    "src/types/**/*.ts",
-    "src/services/**/*.ts",
-    "src/hooks/**/*.ts",
-    "src/hooks/**/*.tsx",
     "src/components/**/*.ts",
     "src/components/**/*.tsx",
+    "src/hooks/**/*.ts",
+    "src/hooks/**/*.tsx",
+    "src/lib/**/*.ts",
+    "src/lib/**/*.tsx",
     "src/sections/**/*.ts",
     "src/sections/**/*.tsx",
-    "next-env.d.ts"
+    "src/services/**/*.ts",
+    "src/types/**/*.ts",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
