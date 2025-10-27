@@ -145,28 +145,20 @@ function GameAnalysisInner() {
                     </Box>
                   </AccordionDetails>
                 </Accordion>
-                {/* Summary (accuracy, opening, current move quality) */}
+                {/* Summary + Engine Lines merged into one section */}
                 <Accordion defaultExpanded={false} disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle2">Summary</Typography>
+                    <Typography variant="subtitle2">Summary & Engine Lines</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
                     <AnalysisTab role="tabpanel" id="tabContent0" />
-                  </AccordionDetails>
-                </Accordion>
-                {/* Engine Lines collapsed by default to reduce clutter */}
-                {gameEval && (
-                  <Accordion defaultExpanded={false} disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                      <Typography variant="subtitle2">Engine Lines</Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Box sx={{ maxHeight: '32vh', overflow: 'auto' }}>
+                    {gameEval && (
+                      <Box sx={{ mt: 1, maxHeight: '32vh', overflow: 'auto' }}>
                         <EngineLines />
                       </Box>
-                    </AccordionDetails>
-                  </Accordion>
-                )}
+                    )}
+                  </AccordionDetails>
+                </Accordion>
               </Box>
               <Box width="100%">
                 <Divider sx={{ marginX: "5%", marginBottom: 1.5 }} />
