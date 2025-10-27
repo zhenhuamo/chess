@@ -25,12 +25,14 @@ export default function AnalysisTab(props: GridProps) {
     <Grid display="flex" width="100%" flexDirection="column" sx={{ gap: 1.5, ...(props.sx || {}), ...(props.hidden ? { display: 'none' } : {}) }}>
       {/* Make upper info area denser to reduce vertical crowding */}
       <Stack justifyContent="flex-start" alignItems="stretch" spacing={0.75}>
-        {gameEval && (
-          <PlayersMetric title="Accuracy" whiteValue={`${gameEval.accuracy.white.toFixed(1)} %`} blackValue={`${gameEval.accuracy.black.toFixed(1)} %`} />
-        )}
-        {gameEval?.estimatedElo && (
-          <PlayersMetric title="Game Rating" whiteValue={Math.round(gameEval.estimatedElo.white)} blackValue={Math.round(gameEval.estimatedElo.black)} />
-        )}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ pl: 0.5 }}>
+          {gameEval && (
+            <PlayersMetric inline title="Accuracy" whiteValue={`${gameEval.accuracy.white.toFixed(1)} %`} blackValue={`${gameEval.accuracy.black.toFixed(1)} %`} />
+          )}
+          {gameEval?.estimatedElo && (
+            <PlayersMetric inline title="Game Rating" whiteValue={Math.round(gameEval.estimatedElo.white)} blackValue={Math.round(gameEval.estimatedElo.black)} />
+          )}
+        </Stack>
         <MoveInfo />
         <RealtimeAssessment />
         <Opening />
