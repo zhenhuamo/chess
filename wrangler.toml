@@ -1,0 +1,11 @@
+# Cloudflare Pages / Workers runtime config for Next on Pages output
+# This enables Node.js built-ins (node:buffer, node:async_hooks, etc.) used by the
+# generated _worker.js. Pages will detect this file and apply flags at runtime.
+
+name = "chess-pages"
+compatibility_date = "2025-10-27"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Serve engine JS/WASM from Cloudflare R2 custom domain
+NEXT_PUBLIC_ENGINE_BASE_URL = "https://cacle.chess-analysis.org/engines/"
