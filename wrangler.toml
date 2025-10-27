@@ -6,6 +6,10 @@ name = "chess-pages"
 compatibility_date = "2025-10-27"
 compatibility_flags = ["nodejs_compat"]
 
+# Tell Cloudflare Pages which directory to publish from the framework build.
+# This makes Pages honor the compatibility flags in this file.
+pages_build_output_dir = ".vercel/output/static"
+
 [vars]
 # Serve engine JS/WASM from Cloudflare R2 custom domain
 NEXT_PUBLIC_ENGINE_BASE_URL = "https://cacle.chess-analysis.org/engines/"
