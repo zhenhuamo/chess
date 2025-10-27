@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AppBar, Toolbar, Typography, Box, Container, Button, Paper, Stack, TextField, Divider } from '@mui/material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,6 +10,30 @@ import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
 export default function LandingPage() {
   const [pgn, setPgn] = useState('');
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Read a local .pgn file and load its text into the textarea.
+  // Keeping this simple: first file only; if multiple games exist in one file,
+  // chess.js will read the first game when analyzing.
+  const handlePgnFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      // Soft size guard to avoid freezing the UI on very large files.
+      if (file.size > 2 * 1024 * 1024) {
+        // ~2MB
+        alert('文件过大（>2MB）。请只上传单局或较小的PGN。');
+        return;
+      }
+      const text = await file.text();
+      setPgn(text);
+    } catch {
+      alert('读取 PGN 文件失败，请重试。');
+    } finally {
+      // Allow selecting the same file again by clearing the value
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const analyzePgn = async () => {
     if (!pgn.trim()) return;
@@ -49,6 +73,14 @@ export default function LandingPage() {
               <Stack direction="row" spacing={1}>
                 <Button variant="contained" onClick={analyzePgn} disabled={!pgn.trim()}>Analyze PGN</Button>
                 <Button LinkComponent={Link} href="/play" variant="outlined">Play vs Stockfish</Button>
+                <Button variant="text" onClick={() => fileInputRef.current?.click()}>Upload PGN</Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pgn,.txt,application/x-chess-pgn,text/plain"
+                  style={{ display: 'none' }}
+                  onChange={handlePgnFile}
+                />
               </Stack>
             </Stack>
           </Paper>
@@ -73,4 +105,3 @@ export default function LandingPage() {
     </Box>
   );
 }
-
