@@ -50,7 +50,12 @@ function extractScore(payload?: WorkerScorePayload): { cp?: number; mate?: numbe
 }
 
 async function initWorker(variant: EngineVariant, mpv: number, threads: number): Promise<Worker> {
-  const w = new Worker('/engines/stockfish-worker.js', { type: 'classic' });
+  const workerUrl = (() => {
+    const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
+    const suffix = 'stockfish-worker.js';
+    return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+  })();
+  const w = new Worker(workerUrl, { type: 'module' });
   await new Promise<void>((resolve) => {
     w.onmessage = (e: MessageEvent<WorkerMessage>) => {
       if (e.data.type === 'ready') resolve();
@@ -163,3 +168,4 @@ export function useStockfishPool() {
 
   return { evaluateFensLocal, shutdown };
 }
+import { ENGINE_BASE_URL } from '@/src/config/site';

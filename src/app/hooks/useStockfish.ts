@@ -113,28 +113,15 @@ export function useStockfish() {
       return;
     }
 
-    // Prefer same-origin classic worker for reliability under COEP/COOP.
-    // Only if explicitly needed, we can later add a flag to opt into CDN worker.
-    let worker: Worker;
-    try {
-      worker = new Worker('/engines/stockfish-worker.js', { type: 'classic' });
-      setUseLocalAssets(true); // ensure inner engine URLs stay same-origin as well
-    } catch (localErr) {
-      // Very unlikely, but keep a remote fallback to avoid total failure
-      const workerUrl = (() => {
-        const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
-        const suffix = 'stockfish-worker.js';
-        return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
-      })();
-      try {
-        worker = new Worker(workerUrl, { type: 'module' });
-        setUseLocalAssets(false);
-      } catch (remoteErr) {
-        // Surface a visible error and give up
-        console.error('[Stockfish] Failed to create both local and remote workers:', (remoteErr as Error)?.message);
-        throw remoteErr;
-      }
-    }
+    // Always use the R2-hosted bridge worker (module worker over CORS)
+    const workerUrl = (() => {
+      const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
+      const suffix = 'stockfish-worker.js';
+      return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+    })();
+    const worker = new Worker(workerUrl, { type: 'module' });
+    // Use remote engine assets inside the bridge worker too (default)
+    setUseLocalAssets(false);
 
     workerRef.current = worker;
 
