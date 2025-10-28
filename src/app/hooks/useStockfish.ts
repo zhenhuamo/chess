@@ -113,31 +113,27 @@ export function useStockfish() {
       return;
     }
 
-    // Load the bridge worker from the engine CDN (R2) so subsequent engine files
-    // are fetched from the same origin with correct CORS/cache headers.
-    const workerUrl = (() => {
-      const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
-      // ENGINE_BASE_URL usually ends with '/engines/'. If it already ends with it,
-      // avoid duplicating the path.
-      const suffix = 'stockfish-worker.js';
-      return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
-    })();
-    // Cross-origin classic workers are blocked under COEP. We try a module
-    // worker fetched via CORS from the R2 origin first. Some environments
-    // (certain browser/extension mixes or misconfigured CORS) may still block
-    // this, so we fall back to a same-origin classic worker served from
-    // `/public/engines` when construction fails.
+    // Prefer same-origin classic worker for reliability under COEP/COOP.
+    // Only if explicitly needed, we can later add a flag to opt into CDN worker.
     let worker: Worker;
     try {
-      worker = new Worker(workerUrl, { type: 'module' });
-    } catch (err) {
-      // Fallback: same-origin worker; engine assets will also be served from
-      // same-origin to avoid cross-origin classic worker restrictions.
-      console.warn('[Stockfish] Cross-origin module worker failed, falling back to local worker:', (err as Error)?.message);
       worker = new Worker('/engines/stockfish-worker.js', { type: 'classic' });
-      // Since we are now same-origin, force engine assets to use local paths
-      // by clearing ENGINE_BASE_URL effects below via a runtime flag.
-      setUseLocalAssets(true);
+      setUseLocalAssets(true); // ensure inner engine URLs stay same-origin as well
+    } catch (localErr) {
+      // Very unlikely, but keep a remote fallback to avoid total failure
+      const workerUrl = (() => {
+        const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
+        const suffix = 'stockfish-worker.js';
+        return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+      })();
+      try {
+        worker = new Worker(workerUrl, { type: 'module' });
+        setUseLocalAssets(false);
+      } catch (remoteErr) {
+        // Surface a visible error and give up
+        console.error('[Stockfish] Failed to create both local and remote workers:', (remoteErr as Error)?.message);
+        throw remoteErr;
+      }
     }
 
     workerRef.current = worker;
