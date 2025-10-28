@@ -107,6 +107,7 @@ export function useStockfish() {
   const linesRef = useRef<Record<number, AnalysisInfo>>({});
   const requestSeqRef = useRef(0);
   const localFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const remoteEngineFailedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -120,8 +121,27 @@ export function useStockfish() {
       const url = base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
       return ENGINE_ASSETS_VERSION ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}` : url;
     })();
-    const worker = new Worker(workerUrl, { type: 'module' });
-    // Use remote engine assets inside the bridge worker too (default)
+    // Try to spawn the remote bridge worker first. Some environments (notably
+    // certain headless/automation contexts) block cross-origin workers even
+    // when CORS is correctly configured. In that case, fall back to a
+    // same-origin bridge worker while still pointing engine assets to the
+    // remote CDN, so heavy payloads remain remote.
+    let worker: Worker;
+    try {
+      worker = new Worker(workerUrl, { type: 'module' });
+    } catch (err) {
+      // Fallback: same-origin bridge worker
+      try {
+        // This file exists under public/engines in the repo and carries the
+        // same contract as the remote bridge worker.
+        worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
+        console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
+      } catch (err2) {
+        console.error('Stockfish worker failed to start:', err2);
+        return;
+      }
+    }
+    // Prefer remote engine assets inside the bridge worker
     setUseLocalAssets(false);
 
     workerRef.current = worker;
@@ -201,11 +221,50 @@ export function useStockfish() {
           break;
         case 'error':
           console.error('Stockfish error:', message.message);
+          // If the bridge worker failed to spawn a cross-origin engine worker
+          // (common in some headless/automation environments), transparently
+          // fall back to local engine assets so that the page remains usable.
+          if (!remoteEngineFailedRef.current) {
+            const msg = String(message.message || '').toLowerCase();
+            if (/(cannot be accessed from origin|blocked by cors|cross-origin)/.test(msg)) {
+              remoteEngineFailedRef.current = true;
+              setUseLocalAssets(true);
+              try {
+                // Compute a local engine path immediately to avoid relying on
+                // a re-render before setEngineVariant picks up the updated flag.
+                const sabSupported = ((): boolean => { try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
+                const mapLocal = (v: EngineVariant): string => {
+                  switch (v) {
+                    case 'sf17': return sabSupported ? '/engines/stockfish-17/stockfish-17.js' : '/engines/stockfish-17/stockfish-17-single.js';
+                    case 'sf17-lite': return sabSupported ? '/engines/stockfish-17/stockfish-17-lite.js' : '/engines/stockfish-17/stockfish-17-lite-single.js';
+                    case 'sf17-single': return '/engines/stockfish-17/stockfish-17-single.js';
+                    case 'sf161': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1.js' : '/engines/stockfish-16.1/stockfish-16.1-single.js';
+                    case 'sf161-lite': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1-lite.js' : '/engines/stockfish-16.1/stockfish-16.1-lite-single.js';
+                    case 'sf161-single': return '/engines/stockfish-16.1/stockfish-16.1-single.js';
+                    case 'sf16-nnue': return sabSupported ? '/engines/stockfish-16/stockfish-nnue-16.js' : '/engines/stockfish-16/stockfish-nnue-16-single.js';
+                    case 'sf16-nnue-single': return '/engines/stockfish-16/stockfish-nnue-16-single.js';
+                    case 'sf11': return '/engines/stockfish-11.js';
+                  }
+                };
+                const localPath = mapLocal(engineVariant);
+                workerRef.current?.postMessage({ type: 'setengine', path: localPath });
+              } catch {}
+            }
+          }
           break;
         default:
           break;
       }
     };
+
+    // Ensure the bridge worker points to the desired remote engine path before
+    // initialization, to avoid spawning a default same-origin engine first.
+    try {
+      // Reuse the internal engine mapping logic by re-setting the current
+      // variant. This posts a `setengine` message with a fully-qualified
+      // remote URL when `useLocalAssets === false`.
+      setEngineVariant(engineVariant);
+    } catch {}
 
     worker.postMessage({ type: 'init' });
 
