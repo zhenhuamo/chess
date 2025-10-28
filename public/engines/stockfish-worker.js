@@ -42,7 +42,9 @@ function parseInfo(line) {
 
 function parseBestMove(line) {
   const tokens = line.trim().split(/\s+/); if (tokens.length < 2) return null;
-  const bestMove = tokens[1]; if (!bestMove || bestMove === '(none)') return null;
+  const bestMove = tokens[1];
+  // Preserve '(none)' so the UI can stop the spinner gracefully
+  if (!bestMove) return null;
   const pi = tokens.indexOf('ponder'); const ponder = pi !== -1 ? tokens[pi + 1] : undefined;
   return { bestMove, ponder };
 }

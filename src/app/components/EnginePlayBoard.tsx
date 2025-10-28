@@ -90,7 +90,9 @@ export default function EnginePlayBoard({ config, embedInCard = false }: { confi
   useEffect(() => {
     if (!analysis || !engineThinking) return;
     const move = analysis.bestMove;
-    if (!move || move === '(none)') return;
+    // When engine reports no move (e.g. checkmate/stalemate or interrupted),
+    // stop the spinner so UI does not get stuck on "Engine thinking…".
+    if (!move || move === '(none)') { setEngineThinking(false); return; }
     try {
       const next = copyGame(game);
       const result = next.move({ from: move.slice(0, 2) as Square, to: move.slice(2, 4) as Square, promotion: (move[4] || undefined) as any });
