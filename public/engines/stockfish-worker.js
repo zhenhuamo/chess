@@ -3,6 +3,9 @@
 // Stockfish bridge worker. Spawns the official Stockfish.js worker, forwards UCI commands,
 // parses output lines, and sends structured messages to the UI thread.
 
+// Default engine script. If this worker is served from the engine CDN (R2),
+// a leading "/engines/..." will resolve on that CDN origin; if an absolute
+// URL is provided later via `setengine`, we will switch to it.
 const ENGINE_SCRIPT = '/engines/stockfish-17/stockfish-17.js';
 let engineScriptPath = ENGINE_SCRIPT;
 
@@ -99,4 +102,3 @@ self.addEventListener('message', (event) => {
     } catch (error) { sendMessageToUI({ type: 'error', message: error instanceof Error ? error.message : String(error) }); }
   })();
 });
-

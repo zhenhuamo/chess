@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ENGINE_BASE_URL } from '@/src/config/site';
 // Cloud eval disabled: local engine only
 
 type WorkerScorePayload =
@@ -110,7 +111,16 @@ export function useStockfish() {
       return;
     }
 
-    const worker = new Worker('/engines/stockfish-worker.js', { type: 'classic' });
+    // Load the bridge worker from the engine CDN (R2) so subsequent engine files
+    // are fetched from the same origin with correct CORS/cache headers.
+    const workerUrl = (() => {
+      const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
+      // ENGINE_BASE_URL usually ends with '/engines/'. If it already ends with it,
+      // avoid duplicating the path.
+      const suffix = 'stockfish-worker.js';
+      return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+    })();
+    const worker = new Worker(workerUrl, { type: 'classic' });
 
     workerRef.current = worker;
 
@@ -243,16 +253,18 @@ export function useStockfish() {
     setEngineVariantState(variant);
     const sabSupported = ((): boolean => { try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
     const mapPath = (v: EngineVariant): string => {
+      const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
+      const p = (rel: string) => base + (base.endsWith('engines/') ? '' : 'engines/') + rel.replace(/^\/?engines\//, '');
       switch (v) {
-        case 'sf17': return sabSupported ? '/engines/stockfish-17/stockfish-17.js' : '/engines/stockfish-17/stockfish-17-single.js';
-        case 'sf17-lite': return sabSupported ? '/engines/stockfish-17/stockfish-17-lite.js' : '/engines/stockfish-17/stockfish-17-lite-single.js';
-        case 'sf17-single': return '/engines/stockfish-17/stockfish-17-single.js';
-        case 'sf161': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1.js' : '/engines/stockfish-16.1/stockfish-16.1-single.js';
-        case 'sf161-lite': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1-lite.js' : '/engines/stockfish-16.1/stockfish-16.1-lite-single.js';
-        case 'sf161-single': return '/engines/stockfish-16.1/stockfish-16.1-single.js';
-        case 'sf16-nnue': return sabSupported ? '/engines/stockfish-16/stockfish-nnue-16.js' : '/engines/stockfish-16/stockfish-nnue-16-single.js';
-        case 'sf16-nnue-single': return '/engines/stockfish-16/stockfish-nnue-16-single.js';
-        case 'sf11': return '/engines/stockfish-11.js';
+        case 'sf17': return sabSupported ? p('stockfish-17/stockfish-17.js') : p('stockfish-17/stockfish-17-single.js');
+        case 'sf17-lite': return sabSupported ? p('stockfish-17/stockfish-17-lite.js') : p('stockfish-17/stockfish-17-lite-single.js');
+        case 'sf17-single': return p('stockfish-17/stockfish-17-single.js');
+        case 'sf161': return sabSupported ? p('stockfish-16.1/stockfish-16.1.js') : p('stockfish-16.1/stockfish-16.1-single.js');
+        case 'sf161-lite': return sabSupported ? p('stockfish-16.1/stockfish-16.1-lite.js') : p('stockfish-16.1/stockfish-16.1-lite-single.js');
+        case 'sf161-single': return p('stockfish-16.1/stockfish-16.1-single.js');
+        case 'sf16-nnue': return sabSupported ? p('stockfish-16/stockfish-nnue-16.js') : p('stockfish-16/stockfish-nnue-16-single.js');
+        case 'sf16-nnue-single': return p('stockfish-16/stockfish-nnue-16-single.js');
+        case 'sf11': return p('stockfish-11.js');
       }
     };
     const path = mapPath(variant);
