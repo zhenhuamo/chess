@@ -101,6 +101,8 @@ export function useStockfish() {
   const [threads, setThreadsState] = useState<number>(2);
   type EngineVariant = 'sf17'|'sf17-lite'|'sf17-single'|'sf161'|'sf161-lite'|'sf161-single'|'sf16-nnue'|'sf16-nnue-single'|'sf11';
   const [engineVariant, setEngineVariantState] = useState<EngineVariant>('sf17');
+  // If true, serve worker/engine assets from same-origin instead of CDN base.
+  const [useLocalAssets, setUseLocalAssets] = useState(false);
   const infoRef = useRef<AnalysisInfo | null>(null);
   const linesRef = useRef<Record<number, AnalysisInfo>>({});
   const requestSeqRef = useRef(0);
@@ -120,9 +122,23 @@ export function useStockfish() {
       const suffix = 'stockfish-worker.js';
       return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
     })();
-    // Cross-origin classic workers are blocked under COEP. Use module workers
-    // with CORS so the script can be fetched from R2 safely.
-    const worker = new Worker(workerUrl, { type: 'module' });
+    // Cross-origin classic workers are blocked under COEP. We try a module
+    // worker fetched via CORS from the R2 origin first. Some environments
+    // (certain browser/extension mixes or misconfigured CORS) may still block
+    // this, so we fall back to a same-origin classic worker served from
+    // `/public/engines` when construction fails.
+    let worker: Worker;
+    try {
+      worker = new Worker(workerUrl, { type: 'module' });
+    } catch (err) {
+      // Fallback: same-origin worker; engine assets will also be served from
+      // same-origin to avoid cross-origin classic worker restrictions.
+      console.warn('[Stockfish] Cross-origin module worker failed, falling back to local worker:', (err as Error)?.message);
+      worker = new Worker('/engines/stockfish-worker.js', { type: 'classic' });
+      // Since we are now same-origin, force engine assets to use local paths
+      // by clearing ENGINE_BASE_URL effects below via a runtime flag.
+      setUseLocalAssets(true);
+    }
 
     workerRef.current = worker;
 
@@ -251,10 +267,29 @@ export function useStockfish() {
     workerRef.current?.postMessage({ type: 'setoption', name: 'Threads', value: v });
   };
 
+  const [useLocalAssets, setUseLocalAssets] = useState(false);
+
   const setEngineVariant = (variant: EngineVariant) => {
     setEngineVariantState(variant);
     const sabSupported = ((): boolean => { try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
     const mapPath = (v: EngineVariant): string => {
+      // If the worker fell back to same-origin, make the engine URLs
+      // same-origin as well to avoid creating a classic cross-origin worker
+      // inside the bridge worker. Otherwise, serve from the CDN base.
+      if (useLocalAssets) {
+        const pLocal = (rel: string) => '/engines/' + rel.replace(/^\/?engines\//, '');
+        switch (v) {
+          case 'sf17': return sabSupported ? pLocal('stockfish-17/stockfish-17.js') : pLocal('stockfish-17/stockfish-17-single.js');
+          case 'sf17-lite': return sabSupported ? pLocal('stockfish-17/stockfish-17-lite.js') : pLocal('stockfish-17/stockfish-17-lite-single.js');
+          case 'sf17-single': return pLocal('stockfish-17/stockfish-17-single.js');
+          case 'sf161': return sabSupported ? pLocal('stockfish-16.1/stockfish-16.1.js') : pLocal('stockfish-16.1/stockfish-16.1-single.js');
+          case 'sf161-lite': return sabSupported ? pLocal('stockfish-16.1/stockfish-16.1-lite.js') : pLocal('stockfish-16.1/stockfish-16.1-lite-single.js');
+          case 'sf161-single': return pLocal('stockfish-16.1/stockfish-16.1-single.js');
+          case 'sf16-nnue': return sabSupported ? pLocal('stockfish-16/stockfish-nnue-16.js') : pLocal('stockfish-16/stockfish-nnue-16-single.js');
+          case 'sf16-nnue-single': return pLocal('stockfish-16/stockfish-nnue-16-single.js');
+          case 'sf11': return pLocal('stockfish-11.js');
+        }
+      }
       const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
       const p = (rel: string) => base + (base.endsWith('engines/') ? '' : 'engines/') + rel.replace(/^\/?engines\//, '');
       switch (v) {
