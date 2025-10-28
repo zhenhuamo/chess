@@ -11,9 +11,6 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 
 [vars]
-# Serve engine JS/WASM from same-origin path handled by the engines-proxy Worker
+# Minimal env: serve engines from same-origin proxy and force remote assets
 NEXT_PUBLIC_ENGINE_BASE_URL = "/engines/"
 NEXT_PUBLIC_ENGINE_REMOTE_ONLY = "1"
-# Bump this when you update any engine asset or the proxy/headers
-NEXT_PUBLIC_ENGINE_VERSION = "2025-10-28-04"
-NEXT_PUBLIC_ENGINE_DEBUG = "1"
