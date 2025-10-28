@@ -158,52 +158,49 @@ export function useStockfish() {
         })();
       } catch {}
     }
-    // Try to spawn the remote bridge worker first. Some environments (notably
-    // certain headless/automation contexts) block cross-origin workers even
-    // when CORS is correctly configured. In that case, fall back to a
-    // same-origin bridge worker while still pointing engine assets to the
-    // remote CDN, so heavy payloads remain remote.
-    let worker: Worker;
+    // Spawn worker in an async flow to allow fetch/Blob fallback without using
+    // top-level await in useEffect.
+    let disposed = false;
+    let worker: Worker | null = null;
     let workerObjectURL: string | null = null; // revoke on cleanup if blob fallback used
-    try {
-      worker = new Worker(workerUrl, { type: 'module' });
-    } catch (err) {
-      // Fallback: same-origin bridge worker
-      if (REMOTE_ONLY) {
-        // Still honor remote-only by fetching the remote worker bytes via CORS
-        // and instantiating a same-origin blob URL. This avoids the constructor's
-        // cross-origin restrictions while keeping code served from the CDN.
-        try {
-          const res = await fetch(workerUrl, { mode: 'cors', credentials: 'omit' });
-          if (!res.ok) throw new Error(`fetch worker ${res.status}`);
-          const code = await res.text();
-          const blob = new Blob([code], { type: 'application/javascript' });
-          workerObjectURL = URL.createObjectURL(blob);
-          worker = new Worker(workerObjectURL, { type: 'module' });
-          if (DEBUG) console.info('[Stockfish:debug] blob fallback used for bridge worker');
-        } catch (blobErr) {
-          console.error('Stockfish worker failed to start and REMOTE_ONLY is set; blob fallback failed.', blobErr, { workerUrl });
-          return;
-        }
-      } else {
-        try {
-          // This file exists under public/engines only in dev; production export
-          // may strip it. Safe to attempt in dev.
-          worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
-          console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
-        } catch (err2) {
-          console.error('Stockfish worker failed to start:', err2, { workerUrl });
-          return;
+
+    (async () => {
+      try {
+        worker = new Worker(workerUrl, { type: 'module' });
+      } catch (err) {
+        if (REMOTE_ONLY) {
+          try {
+            const res = await fetch(workerUrl, { mode: 'cors', credentials: 'omit' });
+            if (!res.ok) throw new Error(`fetch worker ${res.status}`);
+            const code = await res.text();
+            const blob = new Blob([code], { type: 'application/javascript' });
+            workerObjectURL = URL.createObjectURL(blob);
+            worker = new Worker(workerObjectURL, { type: 'module' });
+            if (DEBUG) console.info('[Stockfish:debug] blob fallback used for bridge worker');
+          } catch (blobErr) {
+            console.error('Stockfish worker failed to start and REMOTE_ONLY is set; blob fallback failed.', blobErr, { workerUrl });
+            return;
+          }
+        } else {
+          try {
+            worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
+            console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
+          } catch (err2) {
+            console.error('Stockfish worker failed to start:', err2, { workerUrl });
+            return;
+          }
         }
       }
-    }
-    // Prefer remote engine assets inside the bridge worker
-    setUseLocalAssets(false);
 
-    workerRef.current = worker;
+      if (disposed || !worker) return;
 
-    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-      const message = event.data;
+      // Prefer remote engine assets inside the bridge worker
+      setUseLocalAssets(false);
+
+      workerRef.current = worker;
+
+      worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+        const message = event.data;
 
       switch (message.type) {
         case 'ready':
@@ -213,14 +210,14 @@ export function useStockfish() {
           // Re-apply options when engine restarts
           try {
             if (typeof multiPv === 'number') {
-              worker.postMessage({ type: 'setoption', name: 'MultiPV', value: Math.max(1, Math.min(6, multiPv)) });
+              workerRef.current?.postMessage({ type: 'setoption', name: 'MultiPV', value: Math.max(1, Math.min(6, multiPv)) });
             }
             if (elo) {
-              worker.postMessage({ type: 'setoption', name: 'UCI_LimitStrength', value: true });
-              worker.postMessage({ type: 'setoption', name: 'UCI_Elo', value: elo });
+              workerRef.current?.postMessage({ type: 'setoption', name: 'UCI_LimitStrength', value: true });
+              workerRef.current?.postMessage({ type: 'setoption', name: 'UCI_Elo', value: elo });
             }
             if (threads) {
-              worker.postMessage({ type: 'setoption', name: 'Threads', value: Math.max(1, Math.min(32, threads)) });
+              workerRef.current?.postMessage({ type: 'setoption', name: 'Threads', value: Math.max(1, Math.min(32, threads)) });
             }
           } catch {}
           break;
@@ -313,21 +310,20 @@ export function useStockfish() {
         default:
           break;
       }
-    };
+      };
 
-    // Ensure the bridge worker points to the desired remote engine path before
-    // initialization, to avoid spawning a default same-origin engine first.
-    try {
-      // Reuse the internal engine mapping logic by re-setting the current
-      // variant. This posts a `setengine` message with a fully-qualified
-      // remote URL when `useLocalAssets === false`.
-      setEngineVariant(engineVariant);
-    } catch {}
+      // Ensure the bridge worker points to the desired remote engine path before
+      // initialization, to avoid spawning a default same-origin engine first.
+      try {
+        setEngineVariant(engineVariant);
+      } catch {}
 
-    worker.postMessage({ type: 'init' });
+      worker!.postMessage({ type: 'init' });
+    })();
 
     return () => {
-      worker.terminate();
+      disposed = true;
+      try { worker?.terminate(); } catch {}
       try { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); } catch {}
       workerRef.current = null;
     };
