@@ -66,8 +66,21 @@ export default {
       return makePreflight(origin, allowed);
     }
 
-    // Proxy through to origin (R2 custom domain) and add headers on the way back
-    const upstream = await fetch(request);
+    // Compute upstream. If this worker is mounted on the main site
+    // (chess-analysis.org/engines/*), rewrite to the configured upstream
+    // origin (e.g. cacle.chess-analysis.org) while preserving path/query.
+    const url = new URL(request.url);
+    const upstreamOrigin = (env.UPSTREAM_ORIGIN || '').trim();
+
+    let target = request;
+    if (upstreamOrigin && !url.origin.startsWith(upstreamOrigin)) {
+      const u2 = new URL(url.pathname + url.search, upstreamOrigin);
+      target = new Request(u2.toString(), request);
+    }
+
+    // Fetch upstream and attach the required headers so COEP pages can
+    // construct workers and load WASM.
+    const upstream = await fetch(target, { cf: { cacheEverything: true } });
     return withSecurityHeaders(upstream, origin, allowed);
   },
 };

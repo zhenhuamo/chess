@@ -389,9 +389,10 @@ export function useStockfish() {
       const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
       const p = (rel: string) => base + (base.endsWith('engines/') ? '' : 'engines/') + rel.replace(/^\/?engines\//, '');
       const withV = (url: string) => ENGINE_ASSETS_VERSION ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}` : url;
-      // Important: when assets are remote (useLocalAssets === false), avoid multi-thread builds
-      // because Emscripten PThread uses classic workers which must be same-origin.
-      const preferSingle = !useLocalAssets || REMOTE_ONLY;
+      // If base is same-origin (e.g., '/engines/'), allow multithread when SAB is supported.
+      // Only prefer single when base is cross-origin (absolute different origin).
+      const sameOriginBase = base.startsWith('/') || (typeof location !== 'undefined' && base.startsWith(location.origin));
+      const preferSingle = !sameOriginBase && (REMOTE_ONLY || !useLocalAssets);
       switch (v) {
         case 'sf17': return withV(preferSingle ? p('stockfish-17/stockfish-17-single.js') : (sabSupported ? p('stockfish-17/stockfish-17.js') : p('stockfish-17/stockfish-17-single.js')));
         case 'sf17-lite': return withV(preferSingle ? p('stockfish-17/stockfish-17-lite-single.js') : (sabSupported ? p('stockfish-17/stockfish-17-lite.js') : p('stockfish-17/stockfish-17-lite-single.js')));
