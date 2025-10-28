@@ -112,6 +112,7 @@ export function useStockfish() {
   const requestSeqRef = useRef(0);
   const localFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remoteEngineFailedRef = useRef(false);
+  const DEBUG = (process.env.NEXT_PUBLIC_ENGINE_DEBUG || '') === '1';
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -125,19 +126,65 @@ export function useStockfish() {
       const url = base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
       return ENGINE_ASSETS_VERSION ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}` : url;
     })();
+
+    if (DEBUG) {
+      try {
+        // Quick diagnostics: page isolation + CORS/COEP headers on the worker URL
+        // Note: COEP/CORP headers are not CORS-safelisted; we expose them from our
+        // engines-proxy Worker so they are readable here.
+        console.info('[Stockfish:debug] page', {
+          origin: location.origin,
+          crossOriginIsolated: (window as any).crossOriginIsolated,
+          engineBase: ENGINE_BASE_URL,
+          workerUrl,
+          remoteOnly: REMOTE_ONLY,
+        });
+        (async () => {
+          try {
+            const res = await fetch(workerUrl, { method: 'HEAD', mode: 'cors' });
+            const headers: Record<string, string | null> = {
+              'status': String(res.status),
+              'type': res.type,
+              'ac-allow-origin': res.headers.get('access-control-allow-origin'),
+              'coep': res.headers.get('cross-origin-embedder-policy'),
+              'corp': res.headers.get('cross-origin-resource-policy'),
+              'content-type': res.headers.get('content-type'),
+              'etag': res.headers.get('etag'),
+            };
+            console.info('[Stockfish:debug] probe HEAD worker', headers);
+          } catch (e) {
+            console.warn('[Stockfish:debug] probe HEAD worker failed', e);
+          }
+        })();
+      } catch {}
+    }
     // Try to spawn the remote bridge worker first. Some environments (notably
     // certain headless/automation contexts) block cross-origin workers even
     // when CORS is correctly configured. In that case, fall back to a
     // same-origin bridge worker while still pointing engine assets to the
     // remote CDN, so heavy payloads remain remote.
     let worker: Worker;
+    let workerObjectURL: string | null = null; // revoke on cleanup if blob fallback used
     try {
       worker = new Worker(workerUrl, { type: 'module' });
     } catch (err) {
       // Fallback: same-origin bridge worker
       if (REMOTE_ONLY) {
-        console.error('Stockfish worker failed to start and REMOTE_ONLY is set; no local fallback will be used.', err);
-        return;
+        // Still honor remote-only by fetching the remote worker bytes via CORS
+        // and instantiating a same-origin blob URL. This avoids the constructor's
+        // cross-origin restrictions while keeping code served from the CDN.
+        try {
+          const res = await fetch(workerUrl, { mode: 'cors', credentials: 'omit' });
+          if (!res.ok) throw new Error(`fetch worker ${res.status}`);
+          const code = await res.text();
+          const blob = new Blob([code], { type: 'application/javascript' });
+          workerObjectURL = URL.createObjectURL(blob);
+          worker = new Worker(workerObjectURL, { type: 'module' });
+          if (DEBUG) console.info('[Stockfish:debug] blob fallback used for bridge worker');
+        } catch (blobErr) {
+          console.error('Stockfish worker failed to start and REMOTE_ONLY is set; blob fallback failed.', blobErr, { workerUrl });
+          return;
+        }
       } else {
         try {
           // This file exists under public/engines only in dev; production export
@@ -145,7 +192,7 @@ export function useStockfish() {
           worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
           console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
         } catch (err2) {
-          console.error('Stockfish worker failed to start:', err2);
+          console.error('Stockfish worker failed to start:', err2, { workerUrl });
           return;
         }
       }
@@ -281,6 +328,7 @@ export function useStockfish() {
 
     return () => {
       worker.terminate();
+      try { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); } catch {}
       workerRef.current = null;
     };
   }, []);

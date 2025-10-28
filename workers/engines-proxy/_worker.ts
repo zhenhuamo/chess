@@ -48,7 +48,7 @@ function withSecurityHeaders(resp: Response, origin: string | null, allowed: str
   const allowOrigin = isAllowed(origin, allowed);
   const h = new Headers(resp.headers);
   if (allowOrigin) h.set('Access-Control-Allow-Origin', allowOrigin);
-  h.set('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+  h.set('Access-Control-Expose-Headers', 'Content-Length, Content-Type, Cross-Origin-Embedder-Policy, Cross-Origin-Resource-Policy, ETag');
   h.append('Vary', 'Origin');
   // Required for cross-origin isolation across page and workers
   h.set('Cross-Origin-Embedder-Policy', 'require-corp');
@@ -71,4 +71,3 @@ export default {
     return withSecurityHeaders(upstream, origin, allowed);
   },
 };
-
