@@ -10,6 +10,7 @@ const ENGINE_SCRIPT = '/engines/stockfish-17/stockfish-17.js';
 let engineScriptPath = ENGINE_SCRIPT;
 
 let engineWorker = null; // The actual Stockfish.js worker
+let engineBlobUrl = null; // Object URL used when wrapping cross-origin engine
 let engineInitPromise = null;
 let engineReady = false;
 let analysisInFlight = false;
@@ -67,10 +68,29 @@ function dispatchCommand(command, options) {
 
 function flushStartupQueue() { if (!engineWorker || startupQueue.length === 0) return; const q = startupQueue; startupQueue = []; q.forEach((cmd) => dispatchCommand(cmd, { bypassQueue: true })); }
 
+function isCrossOrigin(url) { try { const u = new URL(url, self.location.href); return u.origin !== self.location.origin; } catch { return false; } }
+
+function getBaseDir(url) { try { const u = new URL(url, self.location.href); const p = u.pathname; return `${u.origin}${p.slice(0, p.lastIndexOf('/') + 1)}`; } catch { return ''; } }
+
+function createEngineWorker(path) {
+  // Default: classic worker; Stockfish JS bundle is not an ES module.
+  // For cross-origin paths, wrap in a tiny bootstrap blob that sets a base
+  // directory hint (ht) and uses importScripts() with CORS.
+  if (engineBlobUrl) { try { URL.revokeObjectURL(engineBlobUrl); } catch {} engineBlobUrl = null; }
+  if (isCrossOrigin(path)) {
+    const base = getBaseDir(path);
+    const bootstrap = `self.ht=${JSON.stringify(base)};try{importScripts(${JSON.stringify(path)});}catch(e){self.postMessage({type:'error',message:String(e)})}`;
+    const blob = new Blob([bootstrap], { type: 'application/javascript' });
+    engineBlobUrl = URL.createObjectURL(blob);
+    return new Worker(engineBlobUrl);
+  }
+  return new Worker(path);
+}
+
 function ensureEngine() {
   if (engineWorker) return Promise.resolve(); if (engineInitPromise) return engineInitPromise;
   engineInitPromise = new Promise((resolve, reject) => {
-    try { engineWorker = new Worker(engineScriptPath); } catch (error) { sendMessageToUI({ type: 'error', message: error instanceof Error ? error.message : String(error) }); reject(error); return; }
+    try { engineWorker = createEngineWorker(engineScriptPath); } catch (error) { sendMessageToUI({ type: 'error', message: error instanceof Error ? error.message : String(error) }); reject(error); return; }
     engineWorker.onmessage = (e) => { const data = String(e.data || ''); if (!data) return; if (data.indexOf('\n') !== -1) { data.split('\n').forEach((line) => handleEngineOutput(line)); } else { handleEngineOutput(data); } };
     engineWorker.onerror = (e) => { try { const msg = (e && (e.message || (e.error && e.error.message))) || String(e); const suppress = /RuntimeError: unreachable|function signature mismatch|is not a function|table index is out of bounds/i.test(msg); if (suppress) { sendMessageToUI({ type: 'log', message: `[engine:onerror:suppressed] ${msg}` }); if (e && typeof e.preventDefault === 'function') e.preventDefault(); return; } sendMessageToUI({ type: 'error', message: msg }); } catch (err) { sendMessageToUI({ type: 'error', message: String(err) }); } };
     dispatchCommand('uci', { force: true, allowDuringInit: true }); resolve();
@@ -78,7 +98,7 @@ function ensureEngine() {
   return engineInitPromise;
 }
 
-function resetEngine(newPath) { try { if (engineWorker) { engineWorker.terminate(); } } catch {} engineWorker = null; engineReady = false; engineInitPromise = null; startupQueue = []; if (typeof newPath === 'string' && newPath.length) { engineScriptPath = newPath; } }
+function resetEngine(newPath) { try { if (engineWorker) { engineWorker.terminate(); } } catch {} engineWorker = null; if (engineBlobUrl) { try { URL.revokeObjectURL(engineBlobUrl); } catch {} engineBlobUrl = null; } engineReady = false; engineInitPromise = null; startupQueue = []; if (typeof newPath === 'string' && newPath.length) { engineScriptPath = newPath; } }
 
 function waitForEngineReady() { if (engineReady) return Promise.resolve(); return new Promise((resolve) => { enqueueReadyCallback(uciReadyCallbacks, resolve); }); }
 function waitForReadyOk() { return new Promise((resolve) => { enqueueReadyCallback(readyOkCallbacks, resolve); dispatchCommand('isready', { allowDuringInit: true }); }); }
