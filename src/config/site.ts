@@ -19,3 +19,9 @@ export const SITE_URL = 'https://chess-analysis.org';
 export const ENGINE_BASE_URL = (
   process.env.NEXT_PUBLIC_ENGINE_BASE_URL || 'https://cacle.chess-analysis.org/engines/'
 ).replace(/\/$/, '/');
+
+// Optional cache-busting/versioning for engine assets served from R2.
+// When set (e.g. NEXT_PUBLIC_ENGINE_VERSION="2025-10-28"), we will append
+// `?v=<value>` to the worker URL so browsers bypass immutable caches after an
+// engine update.
+export const ENGINE_ASSETS_VERSION = process.env.NEXT_PUBLIC_ENGINE_VERSION || '';

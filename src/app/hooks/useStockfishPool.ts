@@ -1,5 +1,7 @@
 'use client';
 
+import { ENGINE_BASE_URL, ENGINE_ASSETS_VERSION } from '@/src/config/site';
+
 // Lightweight local Stockfish worker pool for concurrent single-position analysis.
 // Intended to accelerate full-game analysis when cloud eval is missing/too shallow.
 
@@ -53,7 +55,10 @@ async function initWorker(variant: EngineVariant, mpv: number, threads: number):
   const workerUrl = (() => {
     const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
     const suffix = 'stockfish-worker.js';
-    return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+    const url = base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+    return (typeof ENGINE_ASSETS_VERSION === 'string' && ENGINE_ASSETS_VERSION)
+      ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}`
+      : url;
   })();
   const w = new Worker(workerUrl, { type: 'module' });
   await new Promise<void>((resolve) => {
@@ -168,4 +173,4 @@ export function useStockfishPool() {
 
   return { evaluateFensLocal, shutdown };
 }
-import { ENGINE_BASE_URL } from '@/src/config/site';
+ 

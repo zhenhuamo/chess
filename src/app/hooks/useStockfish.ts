@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ENGINE_BASE_URL } from '@/src/config/site';
+import { ENGINE_BASE_URL, ENGINE_ASSETS_VERSION } from '@/src/config/site';
 // Cloud eval disabled: local engine only
 
 type WorkerScorePayload =
@@ -117,7 +117,8 @@ export function useStockfish() {
     const workerUrl = (() => {
       const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
       const suffix = 'stockfish-worker.js';
-      return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+      const url = base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
+      return ENGINE_ASSETS_VERSION ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}` : url;
     })();
     const worker = new Worker(workerUrl, { type: 'module' });
     // Use remote engine assets inside the bridge worker too (default)
