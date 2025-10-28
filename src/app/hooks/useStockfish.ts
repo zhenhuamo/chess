@@ -267,8 +267,6 @@ export function useStockfish() {
     workerRef.current?.postMessage({ type: 'setoption', name: 'Threads', value: v });
   };
 
-  const [useLocalAssets, setUseLocalAssets] = useState(false);
-
   const setEngineVariant = (variant: EngineVariant) => {
     setEngineVariantState(variant);
     const sabSupported = ((): boolean => { try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
