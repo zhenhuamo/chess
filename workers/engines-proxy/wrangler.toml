@@ -1,0 +1,16 @@
+name = "engines-proxy"
+main = "_worker.ts"
+compatibility_date = "2025-10-27"
+
+# Route this Worker only for engine assets under the R2 custom domain.
+# Replace the hostname below if your custom domain differs.
+routes = [
+  { pattern = "cacle.chess-analysis.org/engines/*" }
+]
+
+[vars]
+# Comma-separated list of origins allowed to consume engine assets via CORS.
+# Keep localhost for local dev. You can also set to "*" to allow all origins
+# (not recommended).
+ALLOWED_ORIGINS = "https://chess-analysis.org, https://www.chess-analysis.org, https://chess-4sw.pages.dev, http://localhost:3000, http://127.0.0.1:3000"
+

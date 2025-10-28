@@ -13,3 +13,4 @@ pages_build_output_dir = ".vercel/output/static"
 [vars]
 # Serve engine JS/WASM from Cloudflare R2 custom domain
 NEXT_PUBLIC_ENGINE_BASE_URL = "https://cacle.chess-analysis.org/engines/"
+NEXT_PUBLIC_ENGINE_REMOTE_ONLY = "1"

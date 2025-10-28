@@ -103,6 +103,10 @@ export function useStockfish() {
   const [engineVariant, setEngineVariantState] = useState<EngineVariant>('sf17');
   // If true, serve worker/engine assets from same-origin instead of CDN base.
   const [useLocalAssets, setUseLocalAssets] = useState(false);
+  // When true, never attempt to use same-origin engine assets or bridge worker
+  // fallbacks. This is required when large engine files are stripped from the
+  // export output and must always come from the CDN/R2.
+  const REMOTE_ONLY = (process.env.NEXT_PUBLIC_ENGINE_REMOTE_ONLY || '') === '1';
   const infoRef = useRef<AnalysisInfo | null>(null);
   const linesRef = useRef<Record<number, AnalysisInfo>>({});
   const requestSeqRef = useRef(0);
@@ -131,14 +135,19 @@ export function useStockfish() {
       worker = new Worker(workerUrl, { type: 'module' });
     } catch (err) {
       // Fallback: same-origin bridge worker
-      try {
-        // This file exists under public/engines in the repo and carries the
-        // same contract as the remote bridge worker.
-        worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
-        console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
-      } catch (err2) {
-        console.error('Stockfish worker failed to start:', err2);
+      if (REMOTE_ONLY) {
+        console.error('Stockfish worker failed to start and REMOTE_ONLY is set; no local fallback will be used.', err);
         return;
+      } else {
+        try {
+          // This file exists under public/engines only in dev; production export
+          // may strip it. Safe to attempt in dev.
+          worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
+          console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
+        } catch (err2) {
+          console.error('Stockfish worker failed to start:', err2);
+          return;
+        }
       }
     }
     // Prefer remote engine assets inside the bridge worker
@@ -228,27 +237,29 @@ export function useStockfish() {
             const msg = String(message.message || '').toLowerCase();
             if (/(cannot be accessed from origin|blocked by cors|cross-origin)/.test(msg)) {
               remoteEngineFailedRef.current = true;
-              setUseLocalAssets(true);
-              try {
-                // Compute a local engine path immediately to avoid relying on
-                // a re-render before setEngineVariant picks up the updated flag.
-                const sabSupported = ((): boolean => { try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
-                const mapLocal = (v: EngineVariant): string => {
-                  switch (v) {
-                    case 'sf17': return sabSupported ? '/engines/stockfish-17/stockfish-17.js' : '/engines/stockfish-17/stockfish-17-single.js';
-                    case 'sf17-lite': return sabSupported ? '/engines/stockfish-17/stockfish-17-lite.js' : '/engines/stockfish-17/stockfish-17-lite-single.js';
-                    case 'sf17-single': return '/engines/stockfish-17/stockfish-17-single.js';
-                    case 'sf161': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1.js' : '/engines/stockfish-16.1/stockfish-16.1-single.js';
-                    case 'sf161-lite': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1-lite.js' : '/engines/stockfish-16.1/stockfish-16.1-lite-single.js';
-                    case 'sf161-single': return '/engines/stockfish-16.1/stockfish-16.1-single.js';
-                    case 'sf16-nnue': return sabSupported ? '/engines/stockfish-16/stockfish-nnue-16.js' : '/engines/stockfish-16/stockfish-nnue-16-single.js';
-                    case 'sf16-nnue-single': return '/engines/stockfish-16/stockfish-nnue-16-single.js';
-                    case 'sf11': return '/engines/stockfish-11.js';
-                  }
-                };
-                const localPath = mapLocal(engineVariant);
-                workerRef.current?.postMessage({ type: 'setengine', path: localPath });
-              } catch {}
+              if (!REMOTE_ONLY) {
+                setUseLocalAssets(true);
+                try {
+                  // Compute a local engine path immediately to avoid relying on
+                  // a re-render before setEngineVariant picks up the updated flag.
+                  const sabSupported = ((): boolean => { try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
+                  const mapLocal = (v: EngineVariant): string => {
+                    switch (v) {
+                      case 'sf17': return sabSupported ? '/engines/stockfish-17/stockfish-17.js' : '/engines/stockfish-17/stockfish-17-single.js';
+                      case 'sf17-lite': return sabSupported ? '/engines/stockfish-17/stockfish-17-lite.js' : '/engines/stockfish-17/stockfish-17-lite-single.js';
+                      case 'sf17-single': return '/engines/stockfish-17/stockfish-17-single.js';
+                      case 'sf161': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1.js' : '/engines/stockfish-16.1/stockfish-16.1-single.js';
+                      case 'sf161-lite': return sabSupported ? '/engines/stockfish-16.1/stockfish-16.1-lite.js' : '/engines/stockfish-16.1/stockfish-16.1-lite-single.js';
+                      case 'sf161-single': return '/engines/stockfish-16.1/stockfish-16.1-single.js';
+                      case 'sf16-nnue': return sabSupported ? '/engines/stockfish-16/stockfish-nnue-16.js' : '/engines/stockfish-16/stockfish-nnue-16-single.js';
+                      case 'sf16-nnue-single': return '/engines/stockfish-16/stockfish-nnue-16-single.js';
+                      case 'sf11': return '/engines/stockfish-11.js';
+                    }
+                  };
+                  const localPath = mapLocal(engineVariant);
+                  workerRef.current?.postMessage({ type: 'setengine', path: localPath });
+                } catch {}
+              }
             }
           }
           break;
