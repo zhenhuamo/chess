@@ -120,7 +120,9 @@ export function useStockfish() {
       const suffix = 'stockfish-worker.js';
       return base + (base.endsWith('engines/') ? '' : 'engines/') + suffix;
     })();
-    const worker = new Worker(workerUrl, { type: 'classic' });
+    // Cross-origin classic workers are blocked under COEP. Use module workers
+    // with CORS so the script can be fetched from R2 safely.
+    const worker = new Worker(workerUrl, { type: 'module' });
 
     workerRef.current = worker;
 
