@@ -166,7 +166,7 @@ export function useStockfish() {
 
     (async () => {
       try {
-        worker = new Worker(workerUrl, { type: 'module' });
+        worker = new Worker(workerUrl, { type: 'module', credentials: 'omit' as any });
       } catch (err) {
         if (REMOTE_ONLY) {
           try {
@@ -175,7 +175,7 @@ export function useStockfish() {
             const code = await res.text();
             const blob = new Blob([code], { type: 'application/javascript' });
             workerObjectURL = URL.createObjectURL(blob);
-            worker = new Worker(workerObjectURL, { type: 'module' });
+            worker = new Worker(workerObjectURL, { type: 'module', credentials: 'omit' as any });
             if (DEBUG) console.info('[Stockfish:debug] blob fallback used for bridge worker');
           } catch (blobErr) {
             console.error('Stockfish worker failed to start and REMOTE_ONLY is set; blob fallback failed.', blobErr, { workerUrl });
@@ -183,7 +183,7 @@ export function useStockfish() {
           }
         } else {
           try {
-            worker = new Worker('/engines/stockfish-worker.js', { type: 'module' });
+            worker = new Worker('/engines/stockfish-worker.js', { type: 'module', credentials: 'omit' as any });
             console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
           } catch (err2) {
             console.error('Stockfish worker failed to start:', err2, { workerUrl });
