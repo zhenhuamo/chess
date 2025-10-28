@@ -389,14 +389,17 @@ export function useStockfish() {
       const base = ENGINE_BASE_URL.endsWith('/') ? ENGINE_BASE_URL : ENGINE_BASE_URL + '/';
       const p = (rel: string) => base + (base.endsWith('engines/') ? '' : 'engines/') + rel.replace(/^\/?engines\//, '');
       const withV = (url: string) => ENGINE_ASSETS_VERSION ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}` : url;
+      // Important: when assets are remote (useLocalAssets === false), avoid multi-thread builds
+      // because Emscripten PThread uses classic workers which must be same-origin.
+      const preferSingle = !useLocalAssets || REMOTE_ONLY;
       switch (v) {
-        case 'sf17': return withV(sabSupported ? p('stockfish-17/stockfish-17.js') : p('stockfish-17/stockfish-17-single.js'));
-        case 'sf17-lite': return withV(sabSupported ? p('stockfish-17/stockfish-17-lite.js') : p('stockfish-17/stockfish-17-lite-single.js'));
+        case 'sf17': return withV(preferSingle ? p('stockfish-17/stockfish-17-single.js') : (sabSupported ? p('stockfish-17/stockfish-17.js') : p('stockfish-17/stockfish-17-single.js')));
+        case 'sf17-lite': return withV(preferSingle ? p('stockfish-17/stockfish-17-lite-single.js') : (sabSupported ? p('stockfish-17/stockfish-17-lite.js') : p('stockfish-17/stockfish-17-lite-single.js')));
         case 'sf17-single': return withV(p('stockfish-17/stockfish-17-single.js'));
-        case 'sf161': return withV(sabSupported ? p('stockfish-16.1/stockfish-16.1.js') : p('stockfish-16.1/stockfish-16.1-single.js'));
-        case 'sf161-lite': return withV(sabSupported ? p('stockfish-16.1/stockfish-16.1-lite.js') : p('stockfish-16.1/stockfish-16.1-lite-single.js'));
+        case 'sf161': return withV(preferSingle ? p('stockfish-16.1/stockfish-16.1-single.js') : (sabSupported ? p('stockfish-16.1/stockfish-16.1.js') : p('stockfish-16.1/stockfish-16.1-single.js')));
+        case 'sf161-lite': return withV(preferSingle ? p('stockfish-16.1/stockfish-16.1-lite-single.js') : (sabSupported ? p('stockfish-16.1/stockfish-16.1-lite.js') : p('stockfish-16.1/stockfish-16.1-lite-single.js')));
         case 'sf161-single': return withV(p('stockfish-16.1/stockfish-16.1-single.js'));
-        case 'sf16-nnue': return withV(sabSupported ? p('stockfish-16/stockfish-nnue-16.js') : p('stockfish-16/stockfish-nnue-16-single.js'));
+        case 'sf16-nnue': return withV(preferSingle ? p('stockfish-16/stockfish-nnue-16-single.js') : (sabSupported ? p('stockfish-16/stockfish-nnue-16.js') : p('stockfish-16/stockfish-nnue-16-single.js')));
         case 'sf16-nnue-single': return withV(p('stockfish-16/stockfish-nnue-16-single.js'));
         case 'sf11': return withV(p('stockfish-11.js'));
       }
