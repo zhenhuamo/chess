@@ -102,7 +102,13 @@ export function useStockfish() {
   type EngineVariant = 'sf17'|'sf17-lite'|'sf17-single'|'sf161'|'sf161-lite'|'sf161-single'|'sf16-nnue'|'sf16-nnue-single'|'sf11';
   const [engineVariant, setEngineVariantState] = useState<EngineVariant>('sf17');
   // If true, serve worker/engine assets from same-origin instead of CDN base.
-  const [useLocalAssets, setUseLocalAssets] = useState(false);
+  const [useLocalAssetsState, setUseLocalAssetsState] = useState(false);
+  const useLocalAssetsRef = useRef(false);
+  const setUseLocalAssets = (value: boolean) => {
+    useLocalAssetsRef.current = value;
+    setUseLocalAssetsState(value);
+  };
+  const useLocalAssets = useLocalAssetsState;
   // When true, never attempt to use same-origin engine assets or bridge worker
   // fallbacks. This is required when large engine files are stripped from the
   // export output and must always come from the CDN/R2.
@@ -164,6 +170,8 @@ export function useStockfish() {
     let worker: Worker | null = null;
     let workerObjectURL: string | null = null; // revoke on cleanup if blob fallback used
 
+    let forceLocalAssets = false;
+
     (async () => {
       try {
         worker = new Worker(workerUrl, { type: 'module', credentials: 'omit' as any });
@@ -185,6 +193,8 @@ export function useStockfish() {
           try {
             worker = new Worker('/engines/stockfish-worker.js', { type: 'module', credentials: 'omit' as any });
             console.warn('[Stockfish] Remote worker blocked, using same-origin bridge worker instead');
+            forceLocalAssets = true;
+            remoteEngineFailedRef.current = true;
           } catch (err2) {
             console.error('Stockfish worker failed to start:', err2, { workerUrl });
             return;
@@ -194,8 +204,9 @@ export function useStockfish() {
 
       if (disposed || !worker) return;
 
-      // Prefer remote engine assets inside the bridge worker
-      setUseLocalAssets(false);
+      // Prefer remote engine assets when bridge worker is remote; if we fell back
+      // to a same-origin bridge worker, force same-origin engine assets as well.
+      setUseLocalAssets(forceLocalAssets);
 
       workerRef.current = worker;
 
@@ -372,7 +383,7 @@ export function useStockfish() {
       // If the worker fell back to same-origin, make the engine URLs
       // same-origin as well to avoid creating a classic cross-origin worker
       // inside the bridge worker. Otherwise, serve from the CDN base.
-      if (useLocalAssets) {
+      if (useLocalAssetsRef.current) {
         const pLocal = (rel: string) => '/engines/' + rel.replace(/^\/?engines\//, '');
         switch (v) {
           case 'sf17': return sabSupported ? pLocal('stockfish-17/stockfish-17.js') : pLocal('stockfish-17/stockfish-17-single.js');
@@ -392,7 +403,7 @@ export function useStockfish() {
       // If base is same-origin (e.g., '/engines/'), allow multithread when SAB is supported.
       // Only prefer single when base is cross-origin (absolute different origin).
       const sameOriginBase = base.startsWith('/') || (typeof location !== 'undefined' && base.startsWith(location.origin));
-      const preferSingle = !sameOriginBase && (REMOTE_ONLY || !useLocalAssets);
+      const preferSingle = !sameOriginBase && (REMOTE_ONLY || !useLocalAssetsRef.current);
       switch (v) {
         case 'sf17': return withV(preferSingle ? p('stockfish-17/stockfish-17-single.js') : (sabSupported ? p('stockfish-17/stockfish-17.js') : p('stockfish-17/stockfish-17-single.js')));
         case 'sf17-lite': return withV(preferSingle ? p('stockfish-17/stockfish-17-lite-single.js') : (sabSupported ? p('stockfish-17/stockfish-17-lite.js') : p('stockfish-17/stockfish-17-lite-single.js')));
