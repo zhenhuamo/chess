@@ -30,6 +30,9 @@ type WorkerMessage = WorkerReadyMessage | WorkerInfoMessage | WorkerAnalysisMess
 export interface PoolPositionLine { pv: string[]; depth: number; multiPv: number; cp?: number; mate?: number }
 export interface PoolPositionEval { lines: PoolPositionLine[]; bestMove?: string }
 
+const REMOTE_ONLY = (process.env.NEXT_PUBLIC_ENGINE_REMOTE_ONLY || '') === '1';
+const workerBlobURLs = new WeakMap<Worker, string>();
+
 function mapVariantToPath(variant: EngineVariant): string {
   const sabSupported = (()=>{ try { return typeof SharedArrayBuffer !== 'undefined'; } catch { return false; } })();
   switch (variant) {
@@ -60,19 +63,62 @@ async function initWorker(variant: EngineVariant, mpv: number, threads: number):
       ? `${url}?v=${encodeURIComponent(ENGINE_ASSETS_VERSION)}`
       : url;
   })();
-  const w = new Worker(workerUrl, { type: 'module' });
+  let worker: Worker | null = null;
+  let workerObjectUrl: string | null = null;
+
+  const spawnSameOrigin = () => new Worker('/engines/stockfish-worker.js', { type: 'module', credentials: 'omit' as any });
+
+  try {
+    worker = new Worker(workerUrl, { type: 'module', credentials: 'omit' as any });
+  } catch (err) {
+    if (REMOTE_ONLY) {
+      try {
+        const res = await fetch(workerUrl, { mode: 'cors', credentials: 'omit' });
+        if (!res.ok) throw new Error(`fetch worker ${res.status}`);
+        const code = await res.text();
+        const blob = new Blob([code], { type: 'application/javascript' });
+        workerObjectUrl = URL.createObjectURL(blob);
+        worker = new Worker(workerObjectUrl, { type: 'module', credentials: 'omit' as any });
+      } catch (blobErr) {
+        console.error('[StockfishPool] Remote worker failed and blob fallback also failed', blobErr);
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    } else {
+      try {
+        worker = spawnSameOrigin();
+        workerObjectUrl = null;
+      } catch (fallbackErr) {
+        console.error('[StockfishPool] Failed to create same-origin worker fallback', fallbackErr);
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    }
+  }
+
+  if (!worker) {
+    throw new Error('Failed to initialise Stockfish analysis worker');
+  }
+
+  if (workerObjectUrl) {
+    workerBlobURLs.set(worker, workerObjectUrl);
+  }
+
   await new Promise<void>((resolve) => {
-    w.onmessage = (e: MessageEvent<WorkerMessage>) => {
-      if (e.data.type === 'ready') resolve();
+    const handleReady = (e: MessageEvent<WorkerMessage>) => {
+      if (e.data?.type === 'ready') {
+        worker?.removeEventListener('message', handleReady as any);
+        resolve();
+      }
     };
-    w.postMessage({ type: 'init' });
+    worker.addEventListener('message', handleReady as any);
+    worker.postMessage({ type: 'init' });
   });
+
   const path = mapVariantToPath(variant);
-  w.postMessage({ type: 'setengine', path });
+  worker.postMessage({ type: 'setengine', path });
   // Wait a tick for engine to switch; not strictly required
-  w.postMessage({ type: 'setoption', name: 'MultiPV', value: Math.max(1, Math.min(6, mpv)) });
-  w.postMessage({ type: 'setoption', name: 'Threads', value: Math.max(1, Math.min(32, threads)) });
-  return w;
+  worker.postMessage({ type: 'setoption', name: 'MultiPV', value: Math.max(1, Math.min(6, mpv)) });
+  worker.postMessage({ type: 'setoption', name: 'Threads', value: Math.max(1, Math.min(32, threads)) });
+  return worker;
 }
 
 async function analyzeFenWithWorker(w: Worker, fen: string, depth: number, mpv: number, timeoutMs = 30000): Promise<PoolPositionEval> {
@@ -127,11 +173,20 @@ export function useStockfishPool() {
   let currentThreads = 1;
   let currentMpv = 3;
 
+  const terminateWorker = (w: Worker) => {
+    try { w.terminate(); } catch {}
+    const blobUrl = workerBlobURLs.get(w);
+    if (blobUrl) {
+      try { URL.revokeObjectURL(blobUrl); } catch {}
+      workerBlobURLs.delete(w);
+    }
+  };
+
   const ensurePool = async (workers: number, variant: EngineVariant, threadsPerWorker: number, mpv: number) => {
     const needRebuild = pool.length !== workers || currentVariant !== variant || currentThreads !== threadsPerWorker || currentMpv !== mpv;
     if (!needRebuild) return pool;
     // Terminate old
-    pool.forEach(w => { try { w.terminate(); } catch {} });
+    pool.forEach(terminateWorker);
     pool = [];
     currentVariant = variant; currentThreads = threadsPerWorker; currentMpv = mpv;
     for (let i=0;i<workers;i++) {
@@ -169,7 +224,7 @@ export function useStockfishPool() {
     return results;
   };
 
-  const shutdown = () => { pool.forEach(w=>{ try { w.terminate(); } catch{} }); pool = []; };
+  const shutdown = () => { pool.forEach(terminateWorker); pool = []; };
 
   return { evaluateFensLocal, shutdown };
 }
