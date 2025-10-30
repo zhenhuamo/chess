@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "export",
+  // Static export cannot use next/image optimization. Disable it to avoid runtime error.
+  images: { unoptimized: true },
   eslint: {
     ignoreDuringBuilds: true,
   },
