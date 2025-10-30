@@ -17,6 +17,7 @@ import { useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import EngineSettingsButton from "@/src/sections/engineSettings/engineSettingsButton";
 import { PageTitle } from "@/src/components/pageTitle";
+import TopNav from "../components/TopNav";
 
 function GameAnalysisInner() {
   const theme = useTheme();
@@ -200,8 +201,11 @@ function GameAnalysisInner() {
 
 export default function GameAnalysis() {
   return (
-    <Suspense fallback={<div />}>
-      <GameAnalysisInner />
-    </Suspense>
+    <>
+      <TopNav breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Analyze' }]} />
+      <Suspense fallback={<div />}>
+        <GameAnalysisInner />
+      </Suspense>
+    </>
   );
 }
