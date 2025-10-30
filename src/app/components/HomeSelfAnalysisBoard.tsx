@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Divider, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Divider, Paper, Stack, Typography, Switch, FormControlLabel } from '@mui/material';
 import { Chess, Square } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { useStockfish } from '../hooks/useStockfish';
@@ -109,6 +109,7 @@ export default function HomeSelfAnalysisBoard() {
   const [analysisMultiPv, setAnalysisMultiPv] = useLocalStorage<number>('home-analysis-multipv', 3);
   const [analysisThreads, setAnalysisThreads] = useLocalStorage<number>('home-analysis-threads', 2);
   const [analysisElo, setAnalysisElo] = useLocalStorage<number>('home-analysis-elo', 2800);
+  const [showHintArrow, setShowHintArrow] = useLocalStorage<boolean>('home-show-hint', true);
 
   const appliedVariantRef = useRef<EngineVariant | null>(null);
   const appliedThreadsRef = useRef<number | null>(null);
@@ -426,7 +427,7 @@ const handleSettingsChange = useCallback((next: HomeAnalysisSettings) => {
                 );
                 return acc;
               }, {}),
-              arrows: lastAnalysisMove ? [{ startSquare: lastAnalysisMove.slice(0, 2), endSquare: lastAnalysisMove.slice(2, 4), color: '#22c55e' }] : [],
+              arrows: (showHintArrow && lastAnalysisMove) ? [{ startSquare: lastAnalysisMove.slice(0, 2), endSquare: lastAnalysisMove.slice(2, 4), color: '#22c55e' }] : [],
               squareRenderer: ({ children, square }: any) => {
                 const isSelected = square === selectedSquare;
                 const isPlayable = validMoves.includes(square);
@@ -469,6 +470,7 @@ const handleSettingsChange = useCallback((next: HomeAnalysisSettings) => {
           </Box>
           <HomeAnalysisSettingsButton settings={settings} onChange={handleSettingsChange} />
         </Stack>
+        <FormControlLabel control={<Switch checked={showHintArrow} onChange={(_, v) => setShowHintArrow(v)} size="small" />} label="Show hint arrow" sx={{ mt: -1 }} />
         {bestSuggestion ? (
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 0.5, borderColor: 'rgba(34,197,94,0.35)', background: 'linear-gradient(180deg, rgba(34,197,94,0.12), rgba(13,148,136,0.08))' }}>
             <Stack direction="row" spacing={1} alignItems="center">
