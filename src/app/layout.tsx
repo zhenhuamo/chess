@@ -6,6 +6,11 @@ import ThemeProviderClient from "./components/ThemeProviderClient";
 export const metadata: Metadata = {
   title: "Chess Analyzer",
   description: "Online chess analysis with Stockfish",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

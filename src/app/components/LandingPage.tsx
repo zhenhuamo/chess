@@ -10,6 +10,7 @@ import OfflineBoltIcon from '@mui/icons-material/OfflineBolt';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Chess } from 'chess.js';
 import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
 import HomeSelfAnalysisBoard from './HomeSelfAnalysisBoard';
@@ -67,7 +68,10 @@ export default function LandingPage() {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="sticky" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar sx={{ gap: 2 }}>
-          <Typography variant="h6" sx={{ flex: 1 }}>♔ Chess Analyzer</Typography>
+          <Box component={Link} href="/" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flex: 1 }}>
+            <Image src="/logo.png" alt="Chess Analyzer" width={36} height={36} priority />
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Chess Analyzer</Typography>
+          </Box>
           <Button LinkComponent={Link} href="/play" variant="contained" startIcon={<PlayArrowIcon />}>Play</Button>
         </Toolbar>
       </AppBar>
@@ -399,7 +403,7 @@ export default function LandingPage() {
       </Container>
 
       <Box sx={{ py: 2, borderTop: 1, borderColor: 'divider', textAlign: 'center' }}>
-        <Typography variant="caption" color="text.secondary">© 2024 Chess Analyzer · Powered by Stockfish</Typography>
+        <Typography variant="caption" color="text.secondary">© 2025 Chess Analyzer · Powered by Stockfish</Typography>
       </Box>
     </Box>
   );
