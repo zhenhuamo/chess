@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { AppBar, Toolbar, Typography, Box, Container, Button, Paper, Stack, TextField, Divider, Accordion, AccordionSummary, AccordionDetails, Chip } from '@mui/material';
+import { useRef } from 'react';
+import { Typography, Box, Container, Button, Paper, Stack, Divider, Accordion, AccordionSummary, AccordionDetails, Chip } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import BoltIcon from '@mui/icons-material/Bolt';
@@ -13,46 +13,23 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Chess } from 'chess.js';
 import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
+import HomeGameLoader from './HomeGameLoader';
 import HomeSelfAnalysisBoard from './HomeSelfAnalysisBoard';
 
 export default function LandingPage() {
-  const [pgn, setPgn] = useState('');
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const pgnCardRef = useRef<HTMLDivElement | null>(null);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
 
-  // Read a local .pgn file and load its text into the textarea.
-  // Keeping this simple: first file only; if multiple games exist in one file,
-  // chess.js will read the first game when analyzing.
-  const handlePgnFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      // Soft size guard to avoid freezing the UI on very large files.
-      if (file.size > 2 * 1024 * 1024) {
-        // ~2MB
-        alert('File is too large (>2MB). Please upload a single game or smaller PGN.');
-        return;
-      }
-      const text = await file.text();
-      setPgn(text);
-    } catch {
-      alert('Failed to read PGN file. Please try again.');
-    } finally {
-      // Allow selecting the same file again by clearing the value
-      if (e.target) e.target.value = '';
-    }
-  };
-
-  const analyzePgn = async () => {
-    if (!pgn.trim()) return;
+  // Reusable helper to store a PGN and navigate to analyzer
+  const analyzeGivenPgn = async (pgnText: string, meta?: { origin?: string; playerSide?: 'w' | 'b' }) => {
+    if (!pgnText?.trim()) return;
     try {
       const g = new Chess();
-      g.loadPgn(pgn);
+      g.loadPgn(pgnText);
       try { setGameHeaders(g, { white: { name: 'You' }, black: { name: 'Stockfish' } }); } catch {}
       const { openDB } = await import('idb');
       const db = await openDB('games', 1, { upgrade(db) { if (!db.objectStoreNames.contains('games')) { db.createObjectStore('games', { keyPath: 'id', autoIncrement: true }); } } });
-      const rec: any = { ...(formatGameToDatabase(g) as any), playerSide: 'w', origin: 'home', engineVariant: 'sf17-lite' };
+      const rec: any = { ...(formatGameToDatabase(g) as any), playerSide: meta?.playerSide ?? 'w', origin: meta?.origin ?? 'home', engineVariant: 'sf17-lite' };
       const id = (await db.add('games', rec)) as unknown as number;
       router.push(`/analyze?gameId=${id}`);
     } catch {
@@ -61,22 +38,12 @@ export default function LandingPage() {
   };
 
   const scrollToPgn = () => {
-    pgnCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    loaderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
-      <AppBar position="sticky" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Toolbar sx={{ gap: 2 }}>
-          <Box component={Link} href="/" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none', flex: 1 }}>
-            <Image src="/logo.png" alt="Chess Analyzer" width={36} height={36} priority />
-            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Chess Analyzer</Typography>
-          </Box>
-          <Button LinkComponent={Link} href="/play" variant="contained" startIcon={<PlayArrowIcon />}>Play</Button>
-          <Button LinkComponent={Link} href="/analyze" variant="text" color="inherit">Analyze</Button>
-          <Button LinkComponent={Link} href="/records" variant="text" color="inherit">Records</Button>
-        </Toolbar>
-      </AppBar>
+      {/* Top bar removed: navigation is handled by the new collapsible side nav */}
 
       {/* Hero with subtle gradient + glow */}
       <Box sx={{
@@ -167,6 +134,16 @@ export default function LandingPage() {
 
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
         <Stack spacing={{ xs: 3, md: 4 }}>
+          {/* New unified loader (PGN + Chess.com) */}
+          <Paper ref={loaderRef} variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2.5, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+            <Stack spacing={2}>
+              <Typography variant="subtitle2" color="text.secondary">Load a game from PGN or Chess.com</Typography>
+              <HomeGameLoader
+                onAnalyzePGN={(text) => analyzeGivenPgn(text, { origin: 'chesscom' })}
+                onAnalyzeLocalPGN={(text) => analyzeGivenPgn(text, { origin: 'home' })}
+              />
+            </Stack>
+          </Paper>
           <Box
             sx={{
               display: 'grid',
@@ -175,30 +152,7 @@ export default function LandingPage() {
               alignItems: 'stretch',
             }}
           >
-            <Paper
-              ref={pgnCardRef}
-              variant="outlined"
-              sx={{ p: { xs: 2, md: 3 }, borderRadius: 2.5, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(255,255,255,0.02)' }}
-            >
-              <Stack spacing={2.5}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">Bring your game on board</Typography>
-                  <Typography variant="body1" sx={{ mt: 0.5 }}>Paste a PGN or upload a file and jump straight into engine-powered review.</Typography>
-                </Box>
-                <TextField multiline minRows={6} value={pgn} onChange={(e)=> setPgn(e.target.value)} placeholder={'1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ...'} fullWidth />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Button variant="contained" onClick={analyzePgn} startIcon={<InsightsIcon />} disabled={!pgn.trim()}>Analyze this PGN</Button>
-                  <Button variant="outlined" onClick={() => fileInputRef.current?.click()} startIcon={<UploadFileIcon />}>Upload from file</Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pgn,.txt,application/x-chess-pgn,text/plain"
-                    style={{ display: 'none' }}
-                    onChange={handlePgnFile}
-                  />
-                </Stack>
-              </Stack>
-            </Paper>
+            {/* Left column previously had the standalone PGN card. It is removed to avoid duplication. */}
             <Stack spacing={2.5} sx={{ height: '100%' }}>
               <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2.5, flex: 1 }}>
                 <Typography variant="subtitle2" color="text.secondary">Three steps to better review</Typography>

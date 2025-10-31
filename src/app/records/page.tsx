@@ -16,7 +16,6 @@ import { blue, red } from "@mui/material/colors";
 import { useRouter } from "next/navigation";
 import type { Game } from "@/types/game";
 import { openDB, type DBSchema } from "idb";
-import TopNav from "../components/TopNav";
 
 interface GameDatabaseSchema extends DBSchema {
   games: {
@@ -165,8 +164,6 @@ export default function RecordsPage() {
   );
 
   return (
-    <>
-      <TopNav breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Records' }]} />
       <Grid container justifyContent="center" alignItems="center" gap={4} marginTop={6}>
       <Grid container justifyContent="center" alignItems="center" size={12}>
         <Typography variant="subtitle2">
@@ -195,7 +192,6 @@ export default function RecordsPage() {
         />
       </Grid>
       </Grid>
-    </>
   );
 }
 

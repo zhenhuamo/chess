@@ -155,9 +155,13 @@ export const getEvaluationBarValue = (
   position: PositionEval
 ): { whiteBarPercentage: number; label: string } => {
   const whiteBarPercentage = getPositionWinPercentage(position);
-  const bestLine = position.lines[0];
+  // Guard against empty lines when no analysis is available yet
+  const bestLine = position?.lines?.[0];
+  if (!bestLine) {
+    return { whiteBarPercentage, label: "0.0" };
+  }
 
-  if (bestLine.mate) {
+  if (typeof bestLine.mate === "number") {
     return { label: `M${Math.abs(bestLine.mate)}`, whiteBarPercentage };
   }
 
