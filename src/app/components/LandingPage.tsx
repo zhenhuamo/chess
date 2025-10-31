@@ -73,6 +73,8 @@ export default function LandingPage() {
             <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Chess Analyzer</Typography>
           </Box>
           <Button LinkComponent={Link} href="/play" variant="contained" startIcon={<PlayArrowIcon />}>Play</Button>
+          <Button LinkComponent={Link} href="/analyze" variant="text" color="inherit">Analyze</Button>
+          <Button LinkComponent={Link} href="/records" variant="text" color="inherit">Records</Button>
         </Toolbar>
       </AppBar>
 

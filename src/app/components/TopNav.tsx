@@ -16,6 +16,7 @@ export default function TopNav({ breadcrumbs }: { breadcrumbs?: Crumb[] }) {
         </Box>
         <Button LinkComponent={Link} href="/play" variant="text" color="inherit">Play</Button>
         <Button LinkComponent={Link} href="/analyze" variant="text" color="inherit">Analyze</Button>
+        <Button LinkComponent={Link} href="/records" variant="text" color="inherit">Records</Button>
       </Toolbar>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Toolbar variant="dense" sx={{ minHeight: 36, borderTop: 1, borderColor: 'divider' }}>
@@ -33,4 +34,3 @@ export default function TopNav({ breadcrumbs }: { breadcrumbs?: Crumb[] }) {
     </AppBar>
   );
 }
-
