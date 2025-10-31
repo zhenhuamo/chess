@@ -15,7 +15,7 @@ import type { EngineVariant } from '@/src/types/engine';
 import { MoveClassification } from '@/src/types/enums';
 import { openings } from '@/src/data/openings';
 import { getMovesClassification } from '@/src/lib/engine/helpers/moveClassification';
-import { getEvaluateGameParams, moveLineUciToSan } from '@/src/lib/chess';
+import { getEvaluateGameParams, moveLineUciToSan, setGameHeaders, formatGameToDatabase } from '@/src/lib/chess';
 import type { PositionEval } from '@/src/types/eval';
 
 const copyGame = (src: Chess): Chess => {
@@ -135,6 +135,43 @@ export default function HomeSelfAnalysisBoard() {
     [analysisDepth, analyzePreferCloud],
   );
 
+  // --- Autosave current session to IndexedDB (separate from /play) ---
+  const draftIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    try { const raw = localStorage.getItem('home-draft-id'); if (raw) draftIdRef.current = Number(raw) || null; } catch {}
+  }, []);
+
+  const persistDraft = useCallback(async (g: Chess) => {
+    try {
+      const { openDB } = await import('idb');
+      const db = await openDB('games', 1, { upgrade(db) { if (!db.objectStoreNames.contains('games')) { db.createObjectStore('games', { keyPath: 'id', autoIncrement: true }); } } });
+      try { setGameHeaders(g, { white: { name: 'You' }, black: { name: 'You' } }); } catch {}
+      const meta = { origin: 'home', engineVariant } as any;
+      if (draftIdRef.current) {
+        const id = draftIdRef.current;
+        const prev = await db.get('games', id);
+        const rec = { ...(prev||{}), ...(formatGameToDatabase(g) as any), ...meta, id } as any;
+        await db.put('games', rec);
+        return id;
+      } else {
+        const rec = { ...(formatGameToDatabase(g) as any), ...meta } as any;
+        const id = (await db.add('games', rec)) as unknown as number;
+        draftIdRef.current = id;
+        try { localStorage.setItem('home-draft-id', String(id)); } catch {}
+        return id;
+      }
+    } catch (e) {
+      console.warn('[Home][autosave] failed', e);
+      return null;
+    }
+  }, [engineVariant]);
+
+  // Clear current homepage draft id so that the next persist creates a new record
+  const clearHomeDraftId = useCallback(() => {
+    draftIdRef.current = null;
+    try { localStorage.removeItem('home-draft-id'); } catch {}
+  }, []);
+
   const restart = () => {
     const fresh = new Chess();
     setGame(fresh);
@@ -143,6 +180,9 @@ export default function HomeSelfAnalysisBoard() {
     setLastAnalysisMove(null);
     setBestSuggestion(null);
     analyzePosition(fresh.fen());
+    // Start a new record for a new game
+    clearHomeDraftId();
+    persistDraft(fresh);
   };
 
   const undo = () => {
@@ -155,6 +195,7 @@ export default function HomeSelfAnalysisBoard() {
       setLastAnalysisMove(null);
       setBestSuggestion(null);
       analyzePosition(next.fen());
+      persistDraft(next);
     } catch {}
   };
 
@@ -174,12 +215,14 @@ export default function HomeSelfAnalysisBoard() {
           else playSoundFromMove(result as any);
         } catch {}
         analyzePosition(next.fen());
+        // autosave after each move
+        persistDraft(next);
         return true;
       } catch {
         return false;
       }
     },
-    [analyzePosition, game],
+    [analyzePosition, game, persistDraft],
   );
 
   const onSquareClick = (square: string) => {
@@ -456,6 +499,7 @@ const handleSettingsChange = useCallback((next: HomeAnalysisSettings) => {
         <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
           <Button variant="outlined" size="small" onClick={undo} fullWidth>Undo</Button>
           <Button variant="outlined" size="small" onClick={restart} fullWidth>Restart</Button>
+          <Button variant="outlined" size="small" onClick={() => { clearHomeDraftId(); persistDraft(copyGame(game)); }} fullWidth>Save as new</Button>
         </Stack>
       </Stack>
 
