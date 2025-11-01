@@ -10,5 +10,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
     { url: `${base}/analyze`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${base}/play`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${base}/updates`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
   ];
 }

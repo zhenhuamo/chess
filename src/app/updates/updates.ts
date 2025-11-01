@@ -9,6 +9,17 @@ export interface UpdateEntry {
 export const UPDATES: UpdateEntry[] = [
   {
     date: '2025-11-01',
+    version: 'v1.7.0',
+    title: 'Interactive Engine Lines (PV preview & hotkeys)',
+    items: [
+      'Engine Lines: click any PV to preview the first 10 moves on the analysis board.',
+      'Per-line controls: added buttons to play only the first move, or preview the first 10 moves.',
+      'Keyboard shortcuts: press 1/2/3 to play the first move of PV#1/#2/#3.',
+      'Added header tooltip with usage hints for PV preview and hotkeys.',
+    ],
+  },
+  {
+    date: '2025-11-01',
     version: 'v1.6.0',
     title: 'Analysis page UI/UX improvements',
     items: [
@@ -51,4 +62,3 @@ export const UPDATES: UpdateEntry[] = [
     ],
   },
 ];
-
