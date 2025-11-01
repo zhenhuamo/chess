@@ -9,6 +9,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import InsightsIcon from '@mui/icons-material/Insights';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import StorageIcon from '@mui/icons-material/Storage';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import Image from 'next/image';
 
 interface Props {
@@ -83,9 +84,9 @@ export default function SideNav({ collapsed, onToggle }: Props) {
         <Item href="/analyze" icon={<InsightsIcon />} label="Analyze" />
         <Item href="/play" icon={<SportsEsportsIcon />} label="Play" />
         <Item href="/records" icon={<StorageIcon />} label="Records" />
+        <Item href="/contact" icon={<MailOutlineIcon />} label="Contact" />
       </List>
       <Box sx={{ flex: 1 }} />
     </Box>
   );
 }
-
