@@ -120,7 +120,7 @@ function GameAnalysisInner() {
         {/* Splitter handle */}
         <Box onMouseDown={onDragStart as any} onTouchStart={onDragStart as any} sx={{ width: 8, cursor: 'col-resize', mx: 0.5, background: 'transparent', '&:hover': { background: 'action.hover' }, borderRadius: 1 }} />
         {/* Right: Panel */}
-        <Grid display="flex" justifyContent="start" borderRadius={2} border={1} borderColor={'divider'} sx={{ backgroundColor: 'background.paper', borderColor: 'divider', borderWidth: 1.5, boxShadow: '0 2px 10px rgba(0,0,0,0.35)' }} p={2} rowGap={2} height="calc(100vh - 140px)" flexDirection="column" flexWrap="nowrap" width={{ xs: '100%', lg: rightWidth }} minWidth={{ xs: undefined, lg: 420 }} maxWidth={{ xs: undefined, lg: '980px' }} flexGrow={{ xs: 0, lg: 0 }} overflow="hidden">
+        <Grid display="flex" justifyContent="start" borderRadius={2} border={1} borderColor={'divider'} sx={{ backgroundColor: 'background.paper', borderColor: 'divider', borderWidth: 1.5, boxShadow: '0 2px 10px rgba(0,0,0,0.35)' }} p={2} rowGap={2} height="calc(100vh - 90px)" flexDirection="column" flexWrap="nowrap" width={{ xs: '100%', lg: rightWidth }} minWidth={{ xs: undefined, lg: 420 }} maxWidth={{ xs: undefined, lg: '980px' }} flexGrow={{ xs: 0, lg: 0 }} overflow="hidden">
           {isMounted && isLgOrGreater ? (
             <>
               <Box width="100%">
