@@ -32,22 +32,35 @@ const clsLabel = (mc?: MoveClassification): string => {
   }
 };
 
-const clsColor: Record<string, string> = {
-  Brilliant: '#22d3ee',
-  Great: '#38bdf8',
-  Good: '#22c55e',
-  Best: '#10b981',
-  Okay: '#84cc16',
-  Inaccuracy: '#eab308',
-  Mistake: '#f97316',
-  Blunder: '#ef4444',
-  Forced: '#94a3b8',
-  Opening: '#94a3b8',
-};
-
-function Dot({ color, size = 8 }: { color: string; size?: number }) {
-  const em = size / 16; // Convert px to em (assuming 16px base font size)
-  return <Box component="span" sx={{ display:'inline-flex', alignItems:'center', width: `${em}em`, height: `${em}em`, borderRadius:'50%', bgcolor: color, mr: 0.5, flexShrink: 0 }} />
+function ClassificationIcon({ type, size = 16 }: { type: string; size?: number }) {
+  const iconMap: Record<string, string> = {
+    Brilliant: '/icons/splendid.png',
+    Great: '/icons/perfect.png',
+    Good: '/icons/excellent.png',
+    Best: '/icons/best.png',
+    Okay: '/icons/okay.png',
+    Inaccuracy: '/icons/inaccuracy.png',
+    Mistake: '/icons/mistake.png',
+    Blunder: '/icons/blunder.png',
+    Forced: '/icons/forced.png',
+    Opening: '/icons/opening.png',
+  };
+  const src = iconMap[type];
+  if (!src) return null;
+  return (
+    <Box
+      component="img"
+      src={src}
+      alt={type}
+      sx={{
+        width: size,
+        height: size,
+        mr: 0.5,
+        flexShrink: 0,
+        filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.1))'
+      }}
+    />
+  );
 }
 
 // Map SAN to a chess piece icon depending on the mover color
@@ -192,8 +205,6 @@ export default function MovesTab(props: any) {
           const engineM = (meta?.playerSide||'w')==='w'? r.b : r.w;
           const playerIcon = playerM ? iconForSan(playerM.san, playerM.color) : '';
           const engineIcon = engineM ? iconForSan(engineM.san, engineM.color) : '';
-          const playerDot = playerM ? clsColor[clsLabel(playerM.cls) || ''] || '#999' : '#999';
-          const engineDot = engineM ? clsColor[clsLabel(engineM.cls) || ''] || '#999' : '#999';
           const playerPly = (r.no-1)*2 + ((meta?.playerSide||'w')==='w'?1:2);
           const enginePly = (r.no-1)*2 + ((meta?.playerSide||'w')==='w'?2:1);
           const isActivePlayer = activePly === playerPly;
@@ -232,13 +243,13 @@ export default function MovesTab(props: any) {
               }} data-ply={playerPly} sx={{ flex: 1, cursor: playerM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: playerM ? 'scale(0.95)' : 'none' }, position: 'relative', zIndex: 2, pointerEvents: 'auto', bgcolor: isActivePlayer ? 'action.selected' : undefined, borderRadius: 0.5, boxShadow: isActivePlayer ? 'inset 2px 0 0 0 rgba(25,118,210,.9)' : undefined }}>
                 {playerM ? (
                   <>
-                    <Dot color={playerDot} size={4} />
-                    <Typography variant="caption" sx={{ fontFamily:'monospace', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: 'inherit' }}>{playerIcon}</span>{playerM.san}
+                    <ClassificationIcon type={clsLabel(playerM.cls) || 'Best'} size={14} />
+                    <Typography variant="body2" sx={{ fontFamily:'monospace', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '1rem' }}>{playerIcon}</span> {playerM.san}
                     </Typography>
                   </>
                 ) : (
-                  <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.73rem' }}>–</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '1rem' }}>–</Typography>
                 )}
               </Box>
 
@@ -252,13 +263,13 @@ export default function MovesTab(props: any) {
               }} data-ply={enginePly} sx={{ flex: 1, cursor: engineM ? 'pointer':'default', minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.25, transition: 'all 0.15s ease', '&:active': { transform: engineM ? 'scale(0.95)' : 'none' }, position: 'relative', zIndex: 2, pointerEvents: 'auto', bgcolor: isActiveEngine ? 'action.selected' : undefined, borderRadius: 0.5, boxShadow: isActiveEngine ? 'inset 2px 0 0 0 rgba(25,118,210,.9)' : undefined }}>
                 {engineM ? (
                   <>
-                    <Dot color={engineDot} size={4} />
-                    <Typography variant="caption" sx={{ fontFamily:'monospace', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: 'inherit' }}>{engineIcon}</span>{engineM.san}
+                    <ClassificationIcon type={clsLabel(engineM.cls) || 'Best'} size={14} />
+                    <Typography variant="body2" sx={{ fontFamily:'monospace', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '1rem' }}>{engineIcon}</span> {engineM.san}
                     </Typography>
                   </>
                 ) : (
-                  <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.73rem' }}>–</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '1rem' }}>–</Typography>
                 )}
               </Box>
             </Stack>
@@ -272,12 +283,12 @@ export default function MovesTab(props: any) {
     const order = ['Brilliant','Great','Good','Mistake','Blunder','Inaccuracy','Best','Okay','Forced','Opening'];
     return (
       <Box>
-        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.65rem', display: 'block', mb: 0.25 }}>{side}</Typography>
-        <Stack direction="row" spacing={0.25} alignItems="flex-start" sx={{ flexWrap:'wrap', gap: 0.2 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.85rem', display: 'block', mb: 0.5 }}>{side}</Typography>
+        <Stack spacing={1}>
           {order.map((k) => data[k] ? (
-            <Box key={k} sx={{ display:'flex', alignItems:'center', gap: 0.15, bgcolor: 'action.hover', px: 0.4, py: 0.15, borderRadius: 0.4, minWidth: 'auto' }}>
-              <Dot color={clsColor[k]} size={4} />
-              <Typography variant="caption" sx={{ fontSize: '0.55rem', fontWeight: 500, whiteSpace: 'nowrap' }}>{k} <strong>{data[k]}</strong></Typography>
+            <Box key={k} sx={{ display:'flex', alignItems:'center', gap: 0.5, bgcolor: 'action.hover', px: 0.5, py: 0.2, borderRadius: 0.5, minWidth: 'auto' }}>
+              <ClassificationIcon type={k} size={16} />
+              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap' }}>{k} <strong>{data[k]}</strong></Typography>
             </Box>
           ) : null)}
         </Stack>
@@ -289,7 +300,7 @@ export default function MovesTab(props: any) {
     <Grid display="flex" flexDirection="column" gap={0.75} width="100%" {...props} sx={{ minHeight: 0, flex: 1, overflow: 'hidden' }}>
       {/* Header */}
       <Box sx={{ flexShrink: 0 }}>
-        <Typography variant="subtitle2" sx={{ fontSize: '0.9rem', fontWeight: 600 }}>Moves</Typography>
+        <Typography variant="subtitle1" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>Moves</Typography>
       </Box>
 
       {/* Two column layout: Moves table (left) and Classifications (right) */}
@@ -297,8 +308,8 @@ export default function MovesTab(props: any) {
         {/* Left: Moves table - takes more space */}
         <Box sx={{ flex: 1.3, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <Box sx={{ display: 'flex', gap: 0.75, mb: 0.5, px: 0.5, flexShrink: 0 }}>
-            <Typography variant="caption" sx={{ flex: 1, fontWeight: 600, fontSize: '0.65rem', color: 'text.secondary' }}>You</Typography>
-            <Typography variant="caption" sx={{ flex: 1, fontWeight: 600, fontSize: '0.65rem', color: 'text.secondary' }}>Stockfish</Typography>
+            <Typography variant="body2" sx={{ flex: 1, fontWeight: 600, fontSize: '0.85rem', color: 'text.secondary' }}>You</Typography>
+            <Typography variant="body2" sx={{ flex: 1, fontWeight: 600, fontSize: '0.85rem', color: 'text.secondary' }}>Stockfish</Typography>
           </Box>
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
             <Table />
@@ -307,7 +318,7 @@ export default function MovesTab(props: any) {
 
         {/* Right: Classifications - split into two columns (You vs Engine) */}
         <Box sx={{ flex: 0.9, display: 'flex', flexDirection: 'column', gap: 0.5, flexShrink: 0, overflow: 'hidden', minWidth: 200 }}>
-          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.65rem', color: 'text.secondary', flexShrink: 0 }}>Classification</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', color: 'text.secondary', flexShrink: 0 }}>Classification</Typography>
           <Box sx={{ display: 'flex', gap: 1, overflow: 'hidden', flex: 1, minHeight: 0 }}>
             <Box sx={{ flex: 1, overflow: 'auto' }}>
               <SummaryRow side={labels.player} data={summary.player || {}} />
