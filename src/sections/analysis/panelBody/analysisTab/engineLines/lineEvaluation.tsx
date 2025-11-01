@@ -33,7 +33,27 @@ export default function LineEvaluation({ line }: { line: LineEval }) {
         <Typography variant="body2">PV#{line.multiPv}</Typography>
         <Typography variant="caption" color="text.secondary">Depth {line.depth} · {label}</Typography>
       </Box>
-      <Typography variant="body2" sx={{ fontFamily: 'monospace' }} noWrap title={pvSan}>{pvSan || '...'}</Typography>
+      <Box sx={{
+        overflow: 'auto',
+        whiteSpace: 'nowrap',
+        '&::-webkit-scrollbar': {
+          height: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          bgcolor: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          bgcolor: 'action.disabled',
+          borderRadius: '3px',
+          '&:hover': {
+            bgcolor: 'action.active',
+          }
+        }
+      }}>
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', display: 'inline-block' }} title={pvSan}>
+          {pvSan || '...'}
+        </Typography>
+      </Box>
     </Stack>
   );
 }

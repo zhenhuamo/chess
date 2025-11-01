@@ -21,9 +21,9 @@ export default function EngineLines(props: GridProps) {
       <Stack spacing={0.5} sx={{ width: '100%' }}>
         <Typography variant="caption" color="text.secondary">Engine Lines</Typography>
         <Box sx={{
-          height: 220,
-          minHeight: 160,
-          maxHeight: '50vh',
+          height: 260,
+          minHeight: 200,
+          maxHeight: '40vh',
           resize: 'vertical',
           overflow: 'auto',
           pr: 0.5,

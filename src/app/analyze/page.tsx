@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { Divider, Tab, Tabs, useMediaQuery, useTheme, Box, Accordion, AccordionSummary, AccordionDetails, Typography } from "@mui/material";
+import { Divider, Tab, Tabs, useMediaQuery, useTheme, Box, Accordion, AccordionSummary, AccordionDetails, Typography, Button } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 const Grid: any = Box;
 import BoardContainer from "@/src/sections/analysis/board";
@@ -11,6 +11,7 @@ import AnalysisTab from "@/src/sections/analysis/panelBody/analysisTab";
 import EngineLines from "@/src/sections/analysis/panelBody/analysisTab/engineLines";
 import GraphTab from "@/src/sections/analysis/panelBody/graphTab";
 import MovesTab from "@/src/sections/analysis/panelBody/movesTab";
+import GameLoader from "@/src/sections/analysis/gameLoader";
 import { useAtomValue, useSetAtom } from "jotai";
 import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom } from "@/src/sections/analysis/states";
 import { useSearchParams } from "next/navigation";
@@ -36,6 +37,8 @@ function GameAnalysisInner() {
   const searchParams = useSearchParams();
   const setGameMeta = useSetAtom(gameMetaAtom);
   const showMovesTab = game.history().length > 0 || board.history().length > 0;
+  // Show loader dialog state
+  const [showLoader, setShowLoader] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -109,6 +112,11 @@ function GameAnalysisInner() {
     return () => { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', tu); };
   }, [rightWidth]);
 
+  // Check if there's a game loaded
+  const hasGameFromUrl = searchParams?.get('gameId');
+  const gameMoves = game.history();
+  const hasGame = Boolean(hasGameFromUrl) || gameMoves.length > 0;
+
   return (
     <Grid ref={containerRef} display="flex" flexDirection="column" gap={2} width="100%" height="100vh">
       <PageTitle title="Chesskit Game Analysis" />
@@ -124,7 +132,7 @@ function GameAnalysisInner() {
           {isMounted && isLgOrGreater ? (
             <>
               <Box width="100%">
-                <PanelHeader />
+                <PanelHeader onLoadGame={() => setShowLoader(true)} />
                 <Divider sx={{ marginX: "5%", marginTop: 2.5 }} />
               </Box>
               {/* Desktop: Compact with small graph + accordions */}
@@ -169,7 +177,7 @@ function GameAnalysisInner() {
             <>
               <PanelToolBar />
               {!gameEval && <Divider sx={{ marginX: "5%" }} />}
-              {!gameEval && <PanelHeader />}
+              {!gameEval && <PanelHeader onLoadGame={() => setShowLoader(true)} />}
               {/* Mobile: Show tabs */}
               <Box width="95%" sx={{ borderBottom: 1, borderColor: "divider", marginX: { sm: "5%", xs: undefined } }}>
                 <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)} aria-label="tabs" variant="fullWidth" sx={{ minHeight: 0 }}>
@@ -194,6 +202,29 @@ function GameAnalysisInner() {
         </Grid>
       </Grid>
       <EngineSettingsButton />
+
+      {/* Game Loader Modal */}
+      {showLoader && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setShowLoader(false)}
+        >
+          <Box onClick={(e) => e.stopPropagation()}>
+            <GameLoader onClose={() => setShowLoader(false)} />
+          </Box>
+        </Box>
+      )}
     </Grid>
   );
 }

@@ -9,6 +9,20 @@ export interface UpdateEntry {
 export const UPDATES: UpdateEntry[] = [
   {
     date: '2025-11-01',
+    version: 'v1.6.0',
+    title: 'Analysis page UI/UX improvements',
+    items: [
+      'Optimized PanelHeader by removing "Load Another Game" and reducing height for more space.',
+      'Increased analysis panel height from 140px to 90px offset for better content visibility.',
+      'Enhanced Moves tab with larger fonts (1rem) and improved icons (14px) for better readability.',
+      'Replaced colored dots with professional PNG icons from public/icons directory.',
+      'Improved Classification section with larger fonts (0.85rem), icons (16px), and consistent spacing.',
+      'Added horizontal scrolling to Engine Lines (PV analysis) to view complete move sequences.',
+      'Increased Engine Lines container height to 260px and optimized scrollbar styling.',
+    ],
+  },
+  {
+    date: '2025-11-01',
     version: 'v1.5.0',
     title: 'Contact page and analytics',
     items: [
