@@ -8,6 +8,21 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-02',
+    version: 'v1.8.0',
+    title: 'Openings panel: Personal stats + Light book + PV integration',
+    items: [
+      'New Openings panel with two tabs: My Stats (personal opening book from your saved games) and Book (lightweight local opening book).',
+      'Engine integration: each opening move has quick actions — play the first move (→) or preview multiple moves (▶) using the current engine PV when available.',
+      'Book matching fallback: resolve by full FEN (fen4) first; if not found, fallback to fen2 (piece placement + side to move) and aggregate weights.',
+      'PV awareness: highlight when a move equals Engine PV#1; Book tab shows whether PV#1 is in book or a novelty.',
+      'Expanded light book coverage for key early positions (e4/d4/c4/Nf3 and common replies).',
+      'Personal book depth increased from 12 → 16 plies (≈8 moves) to cover early middlegame transitions.',
+      'Added Rebuild button in My Stats to regenerate the personal opening book on demand.',
+      'Smart fallback for My Stats: if the exact position has no data, show the nearest ancestor within 4 plies with a hint.',
+    ],
+  },
+  {
     date: '2025-11-01',
     version: 'v1.7.0',
     title: 'Interactive Engine Lines (PV preview & hotkeys)',

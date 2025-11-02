@@ -9,6 +9,7 @@ import PanelHeader from "@/src/sections/analysis/panelHeader";
 import PanelToolBar from "@/src/sections/analysis/panelToolbar";
 import AnalysisTab from "@/src/sections/analysis/panelBody/analysisTab";
 import EngineLines from "@/src/sections/analysis/panelBody/analysisTab/engineLines";
+import OpeningsPanel from "@/src/sections/analysis/panelBody/openingsPanel";
 import GraphTab from "@/src/sections/analysis/panelBody/graphTab";
 import MovesTab from "@/src/sections/analysis/panelBody/movesTab";
 import GameLoader from "@/src/sections/analysis/gameLoader";
@@ -154,6 +155,15 @@ function GameAnalysisInner() {
                         <EngineLines />
                       </Box>
                     )}
+                  </AccordionDetails>
+                </Accordion>
+                {/* Openings */}
+                <Accordion defaultExpanded={false} disableGutters sx={{ backgroundColor: 'transparent', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle2">Openings</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <OpeningsPanel />
                   </AccordionDetails>
                 </Accordion>
                 {/* Moves is the primary area; keep expanded and scrollable */}
