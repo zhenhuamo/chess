@@ -19,6 +19,7 @@ import { useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import EngineSettingsButton from "@/src/sections/engineSettings/engineSettingsButton";
 import { PageTitle } from "@/src/components/pageTitle";
+import RetryBar from "@/src/sections/analysis/panelBody/retryBar";
 
 function GameAnalysisInner() {
   const theme = useTheme();
@@ -138,6 +139,8 @@ function GameAnalysisInner() {
               </Box>
               {/* Desktop: Compact with small graph + accordions */}
               <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {/* Retry bar appears when active */}
+                <RetryBar />
                 {gameEval && (
                   <Box sx={{ flexShrink: 0 }}>
                     <GraphTab role="tabpanel" id="tabContent2" />

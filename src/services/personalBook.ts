@@ -95,3 +95,15 @@ export async function rebuildPersonalBookFromDb(maxPlies = 16): Promise<Personal
   const games = (await db.getAll('games')) as Game[];
   return buildPersonalBookIndex(games, maxPlies);
 }
+
+export function getPersonalMoveStat(fen: string, uci: string, opts?: { minSamplesForWinRate?: number }): { count: number; winRate?: number } | null {
+  const idx = CACHE;
+  if (!idx) return null;
+  const fen4 = fenToFen4(fen);
+  const bucket = idx[fen4];
+  if (!bucket) return null;
+  const stat = bucket[uci];
+  if (!stat) return null;
+  const minN = opts?.minSamplesForWinRate ?? 10;
+  return { count: stat.count, winRate: stat.count >= minN ? (stat.successSum / stat.count) : undefined };
+}

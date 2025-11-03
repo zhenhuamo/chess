@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 const Grid: any = Box;
 import { Chessboard } from "react-chessboard";
-import { PrimitiveAtom, atom, useAtomValue, useSetAtom } from "jotai";
+import { PrimitiveAtom, atom, useAtomValue, useSetAtom, useAtom } from "jotai";
 import { useChessActions } from "@/src/hooks/useChessActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Color, MoveClassification } from "@/src/types/enums";
@@ -13,6 +13,7 @@ import { CLASSIFICATION_COLORS, PIECE_SETS } from "@/src/constants";
 import { Player } from "@/src/types/game";
 import PlayerHeader from "./playerHeader";
 import { boardHueAtom, pieceSetAtom } from "./states";
+import { retryStateAtom } from "@/src/sections/analysis/states";
 import tinycolor from "tinycolor2";
 
 export interface Props {
@@ -44,6 +45,7 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
   const [moveClickTo, setMoveClickTo] = useState<string | null>(null);
   const pieceSet = useAtomValue(pieceSetAtom);
   const boardHue = useAtomValue(boardHueAtom);
+  const [retryState, setRetryState] = useAtom(retryStateAtom);
 
   // Only the piece placement part of the FEN is relevant for rendering pieces
   const gameFen = game.fen();
@@ -64,9 +66,25 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
     const { pieceType, sourceSquare, targetSquare } = args;
     if (!targetSquare) return false;
     if (!isPiecePlayable({ piece: pieceType })) return false;
+    // Retry mode: block non-candidate drops
+    if (retryState?.active) {
+      const base = `${sourceSquare}${targetSquare}`;
+      const allowed = new Set(retryState.allowedUci || []);
+      if (allowed.size > 0) {
+        let ok = false;
+        for (const u of allowed) { if (u.startsWith(base)) { ok = true; break; } }
+        if (!ok) {
+          setRetryState((prev) => {
+            const left = Math.max(0, (prev.attemptsLeft ?? 0) - 1);
+            return { ...prev, attemptsLeft: left, hintStage: (prev.hintStage ?? 0) + 1, message: left > 0 ? `Not a candidate. Attempts left: ${left}` : `Attempts exhausted. Revealing the correct move.`, success: false };
+          });
+          return false;
+        }
+      }
+    }
     const result = playMove({ from: sourceSquare, to: targetSquare, promotion: pieceType[1]?.toLowerCase() ?? "q" });
     return !!result;
-  }, [isPiecePlayable, playMove]);
+  }, [isPiecePlayable, playMove, retryState, setRetryState]);
 
   const resetMoveClick = useCallback((square?: string | null) => {
     setMoveClickFrom(square ?? null);
@@ -98,8 +116,25 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
       setShowPromotionDialog(true);
       return;
     }
+    // Retry mode: only allow candidate moves
+    if (retryState?.active) {
+      try {
+        const attemptedUci = `${move.from}${square}${move.promotion || ''}`;
+        const allowed = new Set(retryState.allowedUci || []);
+        if (allowed.size > 0 && !allowed.has(attemptedUci)) {
+          setRetryState((prev) => {
+            const left = Math.max(0, (prev.attemptsLeft ?? 0) - 1);
+            return { ...prev, attemptsLeft: left, hintStage: (prev.hintStage ?? 0) + 1, message: left > 0 ? `Not a candidate. Attempts left: ${left}` : `Attempts exhausted. Revealing the correct move.`, success: false };
+          });
+          return; // block move
+        }
+      } catch {}
+    }
     const result = playMove({ from: moveClickFrom, to: square });
     resetMoveClick(result ? undefined : square);
+    if (retryState?.active) {
+      setRetryState((prev) => ({ ...prev, success: true, message: 'Good move! This matches the engine candidate.' }));
+    }
   }, [game, isPiecePlayable, moveClickFrom, playMove, resetMoveClick, setClickedSquares]);
 
   const handleSquareRightClick = useCallback((square: string) => {

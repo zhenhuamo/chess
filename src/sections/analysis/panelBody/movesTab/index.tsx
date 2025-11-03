@@ -1,11 +1,11 @@
-import { Box, Divider, Stack, Typography } from "@mui/material";
+import { Box, Divider, Stack, Typography, Button, Tooltip } from "@mui/material";
 const Grid: any = Box;
-import { useAtomValue } from "jotai";
-import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom, currentPositionAtom } from "@/src/sections/analysis/states";
+import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom, currentPositionAtom, retryStateAtom, retryCandidateCpThresholdAtom, retryCandidateMaxCountAtom, retryIncludeInaccuracyAtom, retryMaxAttemptsAtom } from "@/src/sections/analysis/states";
 import { useMemo, useCallback, useEffect, useRef } from "react";
 import { getEvaluateGameParams, moveLineUciToSan } from "@/src/lib/chess";
 import { MoveClassification } from "@/src/types/enums";
 import { useChessActions } from "@/src/hooks/useChessActions";
+import { useSetAtom, useAtomValue } from "jotai";
 
 type MoveRow = {
   ply: number;
@@ -87,6 +87,11 @@ export default function MovesTab(props: any) {
   const activePly = currentPosition?.currentMoveIdx ?? 0; // 0 = initial position
   // Use shared navigation helper so behavior matches GraphTab and toolbar
   const { goToMove } = useChessActions(boardAtom);
+  const setRetry = useSetAtom(retryStateAtom);
+  const thresholdCp = useAtomValue(retryCandidateCpThresholdAtom);
+  const maxCand = useAtomValue(retryCandidateMaxCountAtom);
+  const includeInacc = useAtomValue(retryIncludeInaccuracyAtom);
+  const maxAttempts = useAtomValue(retryMaxAttemptsAtom);
 
   // Build move rows from game + eval
   const { pairs, summary, labels } = useMemo(() => {
@@ -145,6 +150,39 @@ export default function MovesTab(props: any) {
     } catch {}
     return out;
   }, [game, gameEval?.positions, meta?.playerSide, meta?.engineVariant]);
+
+  const startRetry = useCallback((ply: number) => {
+    if (!gameEval?.positions) return;
+    try {
+      const { fens } = getEvaluateGameParams(game);
+      const idx = ply - 1; // position before this move
+      const pos = gameEval.positions[idx];
+      const lines = (pos?.lines || []).slice(0, Math.max(1, maxCand + 1));
+      if (!lines.length) return;
+      const top = lines[0];
+      const allowed = new Set<string>();
+      const topScore = typeof top.mate === 'number' ? 100000 : (typeof top.cp === 'number' ? top.cp : 0);
+      const toSan = moveLineUciToSan(fens[idx]);
+      for (const l of lines) {
+        if (!l?.pv?.[0]) continue;
+        if (typeof top.mate === 'number') {
+          // include only lines that also mate in similar direction
+          if (typeof l.mate === 'number') allowed.add(l.pv[0]);
+        } else if (typeof l.cp === 'number') {
+          const diff = Math.abs((l.cp ?? 0) - topScore);
+          if (diff <= (thresholdCp ?? 40)) allowed.add(l.pv[0]);
+        }
+        if (allowed.size >= (maxCand ?? 2)) break;
+      }
+      if (allowed.size === 0 && top?.pv?.[0]) allowed.add(top.pv[0]);
+      // Jump board to target position
+      const base = game.history().length > 0 ? game : board;
+      goToMove(ply - 1, base);
+      setRetry({ active: true, targetPly: ply - 1, baseFen: fens[idx], allowedUci: Array.from(allowed), attemptsLeft: maxAttempts ?? 3, maxAttempts: maxAttempts ?? 3, hintStage: 0, success: false, message: 'Retry: play a top engine move for this position.' });
+    } catch (e) {
+      console.warn('[MovesTab] startRetry failed', e);
+    }
+  }, [board, game, gameEval?.positions, goToMove, maxAttempts, maxCand, thresholdCp]);
 
   // Jump helper: choose the correct base PGN (match GraphTab behavior)
   const jumpTo = useCallback((ply: number) => {
@@ -247,6 +285,11 @@ export default function MovesTab(props: any) {
                     <Typography variant="body2" sx={{ fontFamily:'monospace', fontSize: '1rem', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '1rem' }}>{playerIcon}</span> {playerM.san}
                     </Typography>
+                    {playerM.cls && ([MoveClassification.Mistake, MoveClassification.Blunder].includes(playerM.cls) || (includeInacc && playerM.cls===MoveClassification.Inaccuracy)) && (
+                      <Tooltip title="Retry this move">
+                        <Button size="small" variant="text" onClick={(e)=> { e.stopPropagation(); const ply=(r.no-1)*2 + ((meta?.playerSide||'w')==='w'?1:2); startRetry(ply); }} sx={{ ml: 0.5, minWidth: 0, p: 0.2 }}>Retry</Button>
+                      </Tooltip>
+                    )}
                   </>
                 ) : (
                   <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '1rem' }}>–</Typography>

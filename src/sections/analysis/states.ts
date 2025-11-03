@@ -28,3 +28,22 @@ export const savedEvalsAtom = atom<SavedEvals>({});
 
 // Optional metadata about the loaded game (e.g., player side when game comes from local play)
 export const gameMetaAtom = atom<Pick<Game, 'playerSide' | 'origin' | 'engineVariant'> | undefined>(undefined);
+
+// Training / Retry mode state and settings
+export type RetryState = {
+  active: boolean;
+  targetPly?: number; // move index before which we retry (0-based)
+  baseFen?: string;   // fen of the position to retry from
+  allowedUci?: string[]; // allowed first moves in UCI
+  attemptsLeft?: number;
+  maxAttempts?: number;
+  hintStage?: number; // 0,1,2 ...
+  message?: string;
+  success?: boolean;
+};
+
+export const retryStateAtom = atom<RetryState>({ active: false });
+export const retryMaxAttemptsAtom = atomWithStorage('retryMaxAttempts', 3);
+export const retryCandidateCpThresholdAtom = atomWithStorage('retryCandidateThresholdCp', 40); // centipawns
+export const retryCandidateMaxCountAtom = atomWithStorage('retryCandidateMax', 2);
+export const retryIncludeInaccuracyAtom = atomWithStorage('retryIncludeInaccuracy', false);

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 
-type LightBookNode = { uci: string; weight: number; name?: string; eco?: string; trap?: boolean };
+type LightBookNode = { uci: string; weight?: number; name?: string; eco?: string; trap?: boolean; games?: number; wrWhite?: number; wrBlack?: number };
 type LightBook = { version: number; source: string; nodes: Record<string, LightBookNode[]> };
 
 const fenTo4 = (fen: string) => fen.split(' ').slice(0,4).join(' ');
@@ -35,8 +35,24 @@ export function useLightBook(fen: string) {
       for (const n of arr) {
         const prev = map[key2][n.uci];
         if (prev) {
-          // aggregate weight if same move appears under different castling/ep states
-          prev.weight += n.weight;
+          // aggregate weight/games if same move appears under different castling/ep states
+          prev.weight = (prev.weight || 0) + (n.weight || 0);
+          prev.games = (prev.games || 0) + (n.games || 0);
+          // wrWhite/wrBlack: keep weighted average by games when available
+          if (typeof n.wrWhite === 'number' && typeof n.games === 'number' && n.games > 0) {
+            const gPrev = prev.games || 0;
+            const wPrev = typeof prev.wrWhite === 'number' ? prev.wrWhite * gPrev : 0;
+            const wNew = n.wrWhite * n.games;
+            const gSum = gPrev + n.games;
+            if (gSum > 0) prev.wrWhite = (wPrev + wNew) / gSum;
+          }
+          if (typeof n.wrBlack === 'number' && typeof n.games === 'number' && n.games > 0) {
+            const gPrev = prev.games || 0;
+            const wPrev = typeof prev.wrBlack === 'number' ? prev.wrBlack * gPrev : 0;
+            const wNew = n.wrBlack * n.games;
+            const gSum = gPrev + n.games;
+            if (gSum > 0) prev.wrBlack = (wPrev + wNew) / gSum;
+          }
         } else {
           map[key2][n.uci] = { ...n };
         }
@@ -61,7 +77,7 @@ export function useLightBook(fen: string) {
       list = fen2Map[key2] || [];
       if (list && list.length) matchedBy = 'fen2';
     }
-    const copy = (list || []).slice().sort((a,b) => (b.weight - a.weight));
+    const copy = (list || []).slice().sort((a,b) => ((b.weight||0) - (a.weight||0)));
     return { list: copy.slice(0, 3), matchedBy };
   }, [book, fen, fen2Map]);
 

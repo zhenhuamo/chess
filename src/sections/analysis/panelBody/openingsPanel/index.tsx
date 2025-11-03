@@ -1,7 +1,7 @@
-import { Box, Chip, Divider, IconButton, Paper, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
+import { Box, Chip, Divider, IconButton, Paper, Stack, Tab, Tabs, Tooltip, Typography, ToggleButtonGroup, ToggleButton } from "@mui/material";
 import { useAtomValue } from "jotai";
 import { boardAtom, currentPositionAtom } from "@/src/sections/analysis/states";
-import { fenToFen4, rebuildPersonalBookFromDb, getTopPersonalMoves } from "@/src/services/personalBook";
+import { fenToFen4, rebuildPersonalBookFromDb, getTopPersonalMoves, getPersonalMoveStat } from "@/src/services/personalBook";
 import { usePersonalOpeningBook } from "@/src/hooks/usePersonalOpeningBook";
 import { useLightBook } from "@/src/hooks/useLightBook";
 import { moveLineUciToSan } from "@/src/lib/chess";
@@ -19,6 +19,7 @@ export default function OpeningsPanel() {
   const { ready: personalReady, topMoves } = usePersonalOpeningBook(fen, rebuildKey);
   const { ready: bookReady, top: bookTop, all: bookAll, matchedBy } = useLightBook(fen);
   const [tab, setTab] = useState(0); // 0: My Stats, 1: Book
+  const [sortBy, setSortBy] = useState<'hot'|'wr'|'mine'>(() => 'hot');
   const { addMoves, reset } = useChessActions(boardAtom);
   const toSan = useMemo(() => moveLineUciToSan(fen), [fen]);
 
@@ -43,7 +44,7 @@ export default function OpeningsPanel() {
   };
 
   const engineFirst = position?.eval?.lines?.[0]?.pv?.[0];
-  const Row = ({ label, uci, badge, secondary }: { label: string; uci: string; badge?: string; secondary?: string }) => (
+  const Row = ({ label, uci, badge, secondary, right }: { label: string; uci: string; badge?: string; secondary?: string; right?: any }) => (
     <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</Typography>
@@ -54,6 +55,7 @@ export default function OpeningsPanel() {
         {secondary && <Typography variant="caption" color="text.secondary">{secondary}</Typography>}
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {right}
         <Tooltip title="只下一步">
           <IconButton size="small" onClick={() => playFirst(uci)}>
             <Icon icon="ri:arrow-right-s-line" />
@@ -154,9 +156,43 @@ export default function OpeningsPanel() {
               );
             })()
           )}
-          {bookTop.map((n, i) => (
-            <Row key={i} uci={n.uci} label={toSan(n.uci)} badge={n.name || n.eco || `${n.weight}`} />
-          ))}
+          <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <Typography variant="body2" color="text.secondary">Global Book</Typography>
+            <ToggleButtonGroup size="small" value={sortBy} exclusive onChange={(_,v)=> v && setSortBy(v)}>
+              <ToggleButton value="hot">Hot</ToggleButton>
+              <ToggleButton value="wr">Win%</ToggleButton>
+              <ToggleButton value="mine">My%</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          {bookTop
+            .map((n) => {
+              const san = toSan(n.uci);
+              const side = board.turn();
+              const wr = (typeof n.wrWhite === 'number' || typeof n.wrBlack === 'number') ? (side==='w' ? (n.wrWhite ?? null) : (n.wrBlack ?? null)) : null;
+              const games = n.games ?? (n.weight ? Math.round((n.weight||0)*1000) : 0);
+              const mine = getPersonalMoveStat(fen, n.uci, { minSamplesForWinRate: 10 });
+              return { uci: n.uci, san, badge: n.name || n.eco, wr, games, mineRate: mine?.winRate, mineCount: mine?.count||0 };
+            })
+            .sort((a,b)=> {
+              if (sortBy==='hot') { if (b.games!==a.games) return b.games-a.games; return (b.wr??-1)-(a.wr??-1); }
+              if (sortBy==='wr') { if ((b.wr??-1)!==(a.wr??-1)) return (b.wr??-1)-(a.wr??-1); return b.games-a.games; }
+              const aw = typeof a.mineRate==='number' ? a.mineRate : -1; const bw = typeof b.mineRate==='number' ? b.mineRate : -1;
+              if (bw!==aw) return bw-aw; return b.mineCount - a.mineCount;
+            })
+            .map((r, i) => (
+              <Row
+                key={i}
+                uci={r.uci}
+                label={r.san}
+                badge={r.badge}
+                right={
+                  <Box sx={{ display:'flex', alignItems:'center', gap: 1 }}>
+                    <Typography variant="caption" color="text.secondary">{r.wr!=null ? `${Math.round(r.wr*100)}%` : '—'} · {r.games>0 ? (r.games>=1000000? `${(r.games/1000000).toFixed(1)}M` : r.games>=1000? `${(r.games/1000).toFixed(1)}K` : r.games) : '—'}</Typography>
+                    <Typography variant="caption" color="text.secondary">Mine {typeof r.mineRate==='number' ? `${Math.round(r.mineRate*100)}%` : '—'}{r.mineCount? ` (${r.mineCount})`: ''}</Typography>
+                  </Box>
+                }
+              />
+            ))}
         </Stack>
       )}
     </Box>
