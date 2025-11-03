@@ -15,8 +15,17 @@ export function useLightBook(fen: string) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/book/light.json', { cache: 'force-cache' });
-        const data = (await res.json()) as LightBook;
+        // Try curated global book first, then fallback to light.json demo
+        let data: LightBook | null = null;
+        try {
+          const res1 = await fetch('/book/global.curated.v1.json', { cache: 'no-store' });
+          if (res1.ok) data = (await res1.json()) as LightBook;
+        } catch {}
+        if (!data) {
+          const res2 = await fetch('/book/light.json', { cache: 'no-store' });
+          if (res2.ok) data = (await res2.json()) as LightBook;
+        }
+        if (!data) throw new Error('No opening book data');
         if (!cancelled) setBook(data);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Failed to load book');

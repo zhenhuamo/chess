@@ -142,16 +142,32 @@ export default function OpeningsPanel() {
           {!bookReady && (
             <Typography variant="body2" color="text.secondary">Loading book…</Typography>
           )}
+          {/* Fallback: when current position has no book lines, try nearest ancestor within 4 plies */}
           {bookReady && bookTop.length === 0 && (
-            <Typography variant="body2" color="text.secondary">No book lines for this position{matchedBy === 'fen2' ? ' (fen2)' : ''}.</Typography>
+            <Typography variant="body2" color="text.secondary">No book lines for this exact position.</Typography>
           )}
           {bookReady && engineFirst && (
             (() => {
-              const list = (bookAll as any)?.nodes?.[fen4] || [];
-              const inBook = list.some((n: any) => n.uci === engineFirst);
+              // Check both fen4 exact and fen2 fallback to avoid false negatives
+              const exact = (bookAll as any)?.nodes?.[fen4] || [];
+              const exactHit = exact.some((n: any) => n.uci === engineFirst);
+              let fallbackHit = false;
+              if (!exactHit) {
+                // reuse the same logic as useLightBook: resolve fen2 group
+                const key2 = fen.split(' ').slice(0,2).join(' ');
+                const groups = (bookAll as any)?.nodes || {};
+                const arr: any[] = [];
+                for (const [k, v] of Object.entries(groups)) {
+                  if ((k as string).split(' ').slice(0,2).join(' ') === key2) {
+                    arr.push(...(v as any[]));
+                  }
+                }
+                fallbackHit = arr.some((n: any) => n.uci === engineFirst);
+              }
+              const hit = exactHit || fallbackHit;
               return (
-                <Typography variant="caption" color={inBook ? 'success.main' : 'warning.main'}>
-                  {inBook ? 'Engine PV#1 is in book' : 'Engine PV#1 out of book (Novelty?)'}
+                <Typography variant="caption" color={hit ? 'success.main' : 'warning.main'}>
+                  {hit ? 'Engine PV#1 is in book' : 'Engine PV#1 out of book (Novelty?)'}
                 </Typography>
               );
             })()
@@ -193,6 +209,76 @@ export default function OpeningsPanel() {
                 }
               />
             ))}
+
+          {/* Ancestor fallback list when no direct candidates */}
+          {bookReady && bookTop.length === 0 && (() => {
+            try {
+              const { fens } = getEvaluateGameParams(board);
+              const all = (bookAll as any)?.nodes || {};
+              // Build quick fen2 index for aggregation
+              const fen2Index: Record<string, any> = {};
+              for (const [k, v] of Object.entries(all)) {
+                const k2 = (k as string).split(' ').slice(0,2).join(' ');
+                for (const n of (v as any[])) {
+                  const byMove = (fen2Index[k2] ||= {});
+                  const prev = byMove[n.uci];
+                  if (prev) {
+                    prev.games = (prev.games||0) + (n.games||0);
+                    if (typeof n.wrWhite==='number' && typeof n.games==='number' && n.games>0) {
+                      const gPrev = prev.games || 0; const wPrev = typeof prev.wrWhite==='number'? prev.wrWhite * gPrev : 0;
+                      const gSum = gPrev + n.games; prev.wrWhite = gSum>0 ? (wPrev + n.wrWhite * n.games)/gSum : prev.wrWhite;
+                    }
+                    if (typeof n.wrBlack==='number' && typeof n.games==='number' && n.games>0) {
+                      const gPrev = prev.games || 0; const wPrev = typeof prev.wrBlack==='number'? prev.wrBlack * gPrev : 0;
+                      const gSum = gPrev + n.games; prev.wrBlack = gSum>0 ? (wPrev + n.wrBlack * n.games)/gSum : prev.wrBlack;
+                    }
+                  } else {
+                    byMove[n.uci] = { ...n };
+                  }
+                }
+              }
+
+              const curIdx = fens.length - 1;
+              for (let back=1; back<=4; back++) {
+                const idx = curIdx - back; if (idx < 0) break;
+                const k2 = fens[idx].split(' ').slice(0,2).join(' ');
+                const moves = fen2Index[k2];
+                if (!moves) continue;
+                const list = Object.values(moves) as any[];
+                if (!list.length) continue;
+
+                const rows = list
+                  .map((n:any) => {
+                    const san = moveLineUciToSan(fens[idx])(n.uci);
+                    const side = fens[idx].split(' ')[1] as 'w'|'b';
+                    const wr = typeof n.wrWhite==='number' || typeof n.wrBlack==='number' ? (side==='w'? (n.wrWhite??null):(n.wrBlack??null)) : null;
+                    const mine = getPersonalMoveStat(fen, n.uci, { minSamplesForWinRate: 10 });
+                    return { uci: n.uci, san, badge: n.name||n.eco, wr, games: n.games||0, mineRate: mine?.winRate, mineCount: mine?.count||0 };
+                  })
+                  .sort((a:any,b:any)=> {
+                    if (sortBy==='hot') { if (b.games!==a.games) return b.games-a.games; return (b.wr??-1)-(a.wr??-1); }
+                    if (sortBy==='wr') { if ((b.wr??-1)!==(a.wr??-1)) return (b.wr??-1)-(a.wr??-1); return b.games-a.games; }
+                    const aw = typeof a.mineRate==='number'?a.mineRate:-1; const bw = typeof b.mineRate==='number'?b.mineRate:-1; if (bw!==aw) return bw-aw; return b.mineCount-a.mineCount;
+                  })
+                  .slice(0, 5);
+
+                return (
+                  <>
+                    <Typography variant="caption" color="text.secondary">Showing nearest book lines from {back} ply earlier</Typography>
+                    {rows.map((r,i)=> (
+                      <Row key={`fb-book-${i}`} uci={r.uci} label={r.san} badge={r.badge} right={
+                        <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                          <Typography variant="caption" color="text.secondary">{r.wr!=null? `${Math.round(r.wr*100)}%`:'—'} · {r.games>0? (r.games>=1000000? `${(r.games/1000000).toFixed(1)}M` : r.games>=1000? `${(r.games/1000).toFixed(1)}K` : r.games):'—'}</Typography>
+                          <Typography variant="caption" color="text.secondary">Mine {typeof r.mineRate==='number'? `${Math.round(r.mineRate*100)}%`:'—'}{r.mineCount? ` (${r.mineCount})`:''}</Typography>
+                        </Box>
+                      } />
+                    ))}
+                  </>
+                );
+              }
+            } catch {}
+            return null;
+          })()}
         </Stack>
       )}
     </Box>

@@ -8,6 +8,18 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-03',
+    version: 'v1.9.0',
+    title: 'Opening Book Expansion + Fallback & Reliability Fixes',
+    items: [
+      'Curated global opening book expanded to ~350 fen2 positions (each with Top‑5 moves). Coverage now includes deeper lines in Spanish/Italian/Two Knights/Scotch, Sicilian (Najdorf/Dragon/Classical/Scheveningen/Alapin/Accelerated), French, Caro‑Kann, Scandinavian, Alekhine, Pirc/Modern, QGD/Slav/Semi‑Slav/QGA, Nimzo/QID/Catalan, KID/Grünfeld, Benoni/Benko, and English/Réti.',
+      'Ancestor fallback: when the exact position has no book lines, Book now shows the nearest ancestor within 4 plies with a clear hint.',
+      'PV#1 in‑book check improved: we now check both fen4 (exact) and fen2 (aggregated) to avoid false “Novelty” notices.',
+      'Loading reliability: opening‑book fetch switched to no‑store to prevent stale cache during development or after updates.',
+      'Global Book rows continue to support Hot / Win% / My% sorting and display Win% · Games (K/M) · Mine (≥10 samples).',
+    ],
+  },
+  {
     date: '2025-11-02',
     version: 'v1.8.0',
     title: 'Openings panel: Personal stats + Light book + PV integration',
