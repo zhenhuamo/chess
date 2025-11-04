@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "export",
-  // Static export cannot use next/image optimization. Disable it to avoid runtime error.
   images: { unoptimized: true },
   eslint: {
     ignoreDuringBuilds: true,
@@ -26,6 +25,13 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+  // 仅本地开发提供 /g/:id -> /g 的重写，方便 dev 访问；导出模式不会生效
+  async rewrites() {
+    if (process.env.NODE_ENV === 'development') {
+      return [{ source: '/g/:path*', destination: '/g' }];
+    }
+    return [];
   },
 };
 
