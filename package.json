@@ -8,7 +8,7 @@
     "build:cf": "npx @cloudflare/next-on-pages@1.13.16",
     "start": "next start",
     "lint": "next lint",
-    "postbuild": "rm -rf .vercel/output/static/engines .vercel/output/static/public/engines || true"
+    "postbuild": "rm -rf out/engines out/public/engines .vercel/output/static/engines .vercel/output/static/public/engines || true"
   },
   "keywords": [],
   "author": "",
