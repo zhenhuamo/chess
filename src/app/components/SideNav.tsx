@@ -11,6 +11,9 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import StorageIcon from '@mui/icons-material/Storage';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import HistoryIcon from '@mui/icons-material/History';
+import PaletteIcon from '@mui/icons-material/Palette';
+import { useState } from 'react';
+import AppearanceSettingsDialog from '@/src/components/board/appearanceSettingsDialog';
 import Image from 'next/image';
 
 interface Props {
@@ -26,6 +29,7 @@ export const getNavWidth = (collapsed: boolean) => (collapsed ? NAV_COLLAPSED : 
 export default function SideNav({ collapsed, onToggle }: Props) {
   const pathname = usePathname();
   const w = getNavWidth(collapsed);
+  const [openAppearance, setOpenAppearance] = useState(false);
 
   const Item = (
     { href, icon, label }:
@@ -87,8 +91,20 @@ export default function SideNav({ collapsed, onToggle }: Props) {
         <Item href="/records" icon={<StorageIcon />} label="Records" />
         <Item href="/updates" icon={<HistoryIcon />} label="Updates" />
         <Item href="/contact" icon={<MailOutlineIcon />} label="Contact" />
+        <ListItemButton
+          onClick={() => setOpenAppearance(true)}
+          sx={{
+            borderRadius: 2,
+            mx: 1,
+            my: 0.5,
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 40 }}><PaletteIcon /></ListItemIcon>
+          {!collapsed && <ListItemText primary="Appearance" />}
+        </ListItemButton>
       </List>
       <Box sx={{ flex: 1 }} />
+      <AppearanceSettingsDialog open={openAppearance} onClose={() => setOpenAppearance(false)} />
     </Box>
   );
 }

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Divider, Paper, Stack, Typography, Switch, FormControlLabel } from '@mui/material';
 import { Chess, Square } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import { useAtomValue } from 'jotai';
+import { pieceSetAtom, boardHueAtom, boardThemeAtom } from '@/src/components/board/states';
 import { useStockfish } from '../hooks/useStockfish';
 import { playMoveSound, playSoundFromMove } from '@/src/lib/sounds';
 import { useResponsiveBoardSize } from '@/src/hooks/useResponsiveBoardSize';
@@ -435,57 +437,75 @@ const handleSettingsChange = useCallback((next: HomeAnalysisSettings) => {
     <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2.5 }, borderRadius: 2.5, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(12,12,18,0.75)', display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: { xs: 2.5, lg: 3.5 }, alignItems: 'stretch', width: '100%', maxWidth: { xs: '100%', xl: 1100 } }}>
       <Stack spacing={2} alignItems="center" justifyContent="center" sx={{ flex: 1.6, minWidth: 0 }}>
         <Box sx={{ width: boardSize, maxWidth: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Chessboard
-            key={boardKey}
-            options={{
-              id: 'HomeBoard',
-              position: game.fen().split(' ')[0],
-              boardOrientation,
-              showNotation: false,
-              boardStyle: {
-                borderRadius: 5,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.45)',
-                width: boardSize,
-                maxWidth: '100%',
-                aspectRatio: '1 / 1',
-              },
-              animationDurationInMs: 200,
-              canDragPiece: ({ piece }) => {
-                if (engineThinking) return false;
-                const side = piece.pieceType[0];
-                return side === (game.turn() === 'w' ? 'w' : 'b');
-              },
-              onPieceDrop: ({ sourceSquare, targetSquare }) => {
-                if (!targetSquare) return false;
-                return handleUserMove(sourceSquare, targetSquare);
-              },
-              onSquareClick: ({ square }) => onSquareClick(square),
-              pieces: ['wP', 'wB', 'wN', 'wR', 'wQ', 'wK', 'bP', 'bB', 'bN', 'bR', 'bQ', 'bK'].reduce((acc: any, code: string) => {
-                acc[code] = () => (
-                  <img
-                    src={`/piece/chicago/${code}.svg`}
-                    alt={code}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain', userSelect: 'none', pointerEvents: 'none' }}
-                  />
-                );
-                return acc;
-              }, {}),
-              arrows: (showHintArrow && lastAnalysisMove) ? [{ startSquare: lastAnalysisMove.slice(0, 2), endSquare: lastAnalysisMove.slice(2, 4), color: '#22c55e' }] : [],
-              squareRenderer: ({ children, square }: any) => {
-                const isSelected = square === selectedSquare;
-                const isPlayable = validMoves.includes(square);
-                const lastMoveSquare = bestSuggestion?.uci.slice(2, 4);
+          {(() => {
+            const pieceSet = useAtomValue(pieceSetAtom);
+            const hue = useAtomValue(boardHueAtom);
+            const theme = useAtomValue(boardThemeAtom);
+            const boardStyle: any = { borderRadius: 8, boxShadow: '0 2px 10px rgba(0,0,0,0.45)', width: boardSize, maxWidth: '100%', aspectRatio: '1 / 1' };
+            if (theme === 'wood') {
+              boardStyle.backgroundImage = 'linear-gradient(45deg, rgba(122,82,38,.25), rgba(60,34,14,.25)), repeating-linear-gradient(90deg, #4b2e17 0px, #4b2e17 8px, #5b3a1d 8px, #5b3a1d 16px)';
+              boardStyle.border = '1px solid #3b2412';
+            } else if (theme === 'blackGold') {
+              boardStyle.background = 'linear-gradient(180deg,#0e0e11,#17171c)';
+              boardStyle.border = '1px solid #a8892c';
+              boardStyle.boxShadow = '0 0 0 1px rgba(168,137,44,.5), 0 6px 20px rgba(0,0,0,.6)';
+            } else if (theme === 'blueGray') {
+              boardStyle.background = 'linear-gradient(180deg,#1b2735,#0e141b)';
+              boardStyle.border = '1px solid #30475e';
+            } else {
+              boardStyle.border = '1px solid rgba(0,0,0,.2)';
+            }
+            const pieces = ['wP','wB','wN','wR','wQ','wK','bP','bB','bN','bR','bQ','bK'].reduce((acc: any, code: string) => {
+              acc[code] = () => (
+                <img src={`/piece/${pieceSet}/${code}.svg`} alt={code} style={{ width:'100%', height:'100%', objectFit:'contain', userSelect:'none', pointerEvents:'none' }} />
+              );
+              return acc;
+            }, {});
+            const key = `${boardKey}-${pieceSet}-${theme}-${hue}`;
+            return (
+              <Chessboard
+                key={key}
+                options={{
+                  id: 'HomeBoard',
+                  position: game.fen().split(' ')[0],
+                  boardOrientation,
+                  showNotation: false,
+                  boardStyle,
+                  animationDurationInMs: 200,
+                  canDragPiece: ({ piece }) => {
+                    if (engineThinking) return false;
+                    const side = piece.pieceType[0];
+                    return side === (game.turn() === 'w' ? 'w' : 'b');
+                  },
+                  onPieceDrop: ({ sourceSquare, targetSquare }) => {
+                    if (!targetSquare) return false;
+                    return handleUserMove(sourceSquare, targetSquare);
+                  },
+                  onSquareClick: ({ square }) => onSquareClick(square),
+                  pieces,
+                  arrows: (showHintArrow && lastAnalysisMove) ? [{ startSquare: lastAnalysisMove.slice(0, 2), endSquare: lastAnalysisMove.slice(2, 4), color: '#22c55e' }] : [],
+                  squareRenderer: ({ children, square }: any) => {
+                    const isSelected = square === selectedSquare;
+                    const isPlayable = validMoves.includes(square);
+                    const lastMoveSquare = bestSuggestion?.uci.slice(2, 4);
                 const rings: string[] = [];
                 if (isSelected) rings.push('inset 0 0 0 4px rgba(59,130,246,.7)');
                 if (isPlayable) rings.push('inset 0 0 0 4px rgba(16,185,129,.85)');
                 const style = rings.length ? { boxShadow: rings.join(', ') } : {};
-                return (
-                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                    {children}
-                    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', ...style }} />
-                    {bestSuggestion && square === lastMoveSquare ? (
-                      <img
-                        src={bestSuggestion.icon}
+                  // theme square base color
+                  const file = 'abcdefgh'.indexOf(square[0]);
+                  const rank = (Number(square[1]) - 1) | 0;
+                  const isDark = ((file + rank) % 2) === 0; // a1 dark
+                  const palette = require('@/src/components/board/colors') as any;
+                  const pair = palette.getSquareColors(theme, hue);
+                  const base: any = { backgroundColor: isDark ? pair.dark : pair.light };
+                  return (
+                    <div style={{ position: 'relative', width: '100%', height: '100%', ...base }}>
+                      {children}
+                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', ...style }} />
+                      {bestSuggestion && square === lastMoveSquare ? (
+                        <img
+                          src={bestSuggestion.icon}
                         alt={bestSuggestion.classification}
                         style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, pointerEvents: 'none' }}
                       />
@@ -493,8 +513,10 @@ const handleSettingsChange = useCallback((next: HomeAnalysisSettings) => {
                   </div>
                 );
               },
-            }}
-          />
+                }}
+              />
+            );
+          })()}
         </Box>
         <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
           <Button variant="outlined" size="small" onClick={undo} fullWidth>Undo</Button>

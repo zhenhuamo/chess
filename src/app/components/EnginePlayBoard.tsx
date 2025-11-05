@@ -4,6 +4,8 @@ import { Chess, Square } from 'chess.js';
 import { useStockfish } from '../hooks/useStockfish';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { Box, Button, Paper, Stack, Typography, Switch, FormControlLabel, Divider } from '@mui/material';
+import { useAtomValue } from 'jotai';
+import { pieceSetAtom, boardHueAtom, boardThemeAtom } from '@/src/components/board/states';
 import { Chessboard } from 'react-chessboard';
 import { useStockfishPool } from '../hooks/useStockfishPool';
 import { getEvaluateGameParams } from '@/src/lib/chess';
@@ -31,6 +33,10 @@ export default function EnginePlayBoard({ config, embedInCard = false }: { confi
   const hintRequestedRef = useRef(false);
   const pool = useStockfishPool();
   const [clsByPly, setClsByPly] = useState<Record<number, MoveClassification | undefined>>({});
+  // Global appearance
+  const appearancePieceSet = useAtomValue(pieceSetAtom);
+  const appearanceHue = useAtomValue(boardHueAtom);
+  const appearanceTheme = useAtomValue(boardThemeAtom);
 
   useEffect(() => {
     if (isReady) setStrengthElo(elo);
@@ -347,18 +353,40 @@ export default function EnginePlayBoard({ config, embedInCard = false }: { confi
           {/* Board (react-chessboard v5) */}
           <Box sx={{ width: 'min(86vh, 86vw)', maxWidth: 760 }}>
             <Chessboard
-              key={`PlayBoard-${game.fen().split(' ')[0]}`}
+              key={`PlayBoard-${game.fen().split(' ')[0]}-${appearancePieceSet}-${appearanceTheme}-${appearanceHue}`}
               options={{
                 id: 'PlayBoard',
                 position: game.fen().split(' ')[0],
                 boardOrientation: (userPlays === 'w' ? 'white' : 'black'),
-                boardStyle: { borderRadius: 5, boxShadow: '0 2px 10px rgba(0,0,0,0.5)' },
+                boardStyle: (()=>{
+                  const hue = appearanceHue;
+                  const theme = appearanceTheme;
+                  let style: any = { borderRadius: 8, boxShadow: '0 2px 10px rgba(0,0,0,.5)' };
+                  if (theme === 'wood') {
+                    style.backgroundImage = 'linear-gradient(45deg, rgba(122,82,38,.25), rgba(60,34,14,.25)), repeating-linear-gradient(90deg, #4b2e17 0px, #4b2e17 8px, #5b3a1d 8px, #5b3a1d 16px)';
+                    style.border = '1px solid #3b2412';
+                  } else if (theme === 'blackGold') {
+                    style.background = 'linear-gradient(180deg,#0e0e11,#17171c)';
+                    style.border = '1px solid #a8892c';
+                    style.boxShadow = '0 0 0 1px rgba(168,137,44,.5), 0 6px 20px rgba(0,0,0,.6)';
+                  } else if (theme === 'blueGray') {
+                    style.background = 'linear-gradient(180deg,#1b2735,#0e141b)';
+                    style.border = '1px solid #30475e';
+                  } else {
+                    style.border = '1px solid rgba(0,0,0,.2)';
+                  }
+                  return style;
+                })(),
                 animationDurationInMs: 200,
-                // custom piece set (chicago) to match analysis board
-                pieces: ['wP','wB','wN','wR','wQ','wK','bP','bB','bN','bR','bQ','bK'].reduce((acc: any, code: string) => {
-                  acc[code] = () => <img src={`/piece/chicago/${code}.svg`} alt={code} style={{ width: '100%', height: '100%', objectFit: 'contain', userSelect: 'none', pointerEvents: 'none' }} />;
-                  return acc;
-                }, {}),
+                // custom piece set from global appearance
+                pieces: (()=>{
+                  const set = appearancePieceSet;
+                  const codes = ['wP','wB','wN','wR','wQ','wK','bP','bB','bN','bR','bQ','bK'];
+                  return codes.reduce((acc: any, code: string) => {
+                    acc[code] = () => <img src={`/piece/${set}/${code}.svg`} alt={code} style={{ width: '100%', height: '100%', objectFit: 'contain', userSelect: 'none', pointerEvents: 'none' }} />;
+                    return acc;
+                  }, {});
+                })(),
                 // dragging rules
                 canDragPiece: ({ piece }) => {
                   if (engineThinking) return false;
@@ -376,6 +404,13 @@ export default function EnginePlayBoard({ config, embedInCard = false }: { confi
                 onSquareClick: ({ square }) => onSquareClick(square),
                 arrows: (showHintArrow && hint) ? [{ startSquare: hint.slice(0,2), endSquare: hint.slice(2,4), color: '#22c55e' }] : [],
                 squareRenderer: ({ children, square }: any) => {
+                  // theme square base color using central palette
+                  const file = 'abcdefgh'.indexOf(square[0]);
+                  const rank = (Number(square[1]) - 1) | 0;
+                  const isDark = ((file + rank) % 2) === 0; // a1 dark
+                  const palette = require('@/src/components/board/colors') as any;
+                  const pair = palette.getSquareColors(appearanceTheme, appearanceHue);
+                  const base: any = { backgroundColor: isDark ? pair.dark : pair.light };
                   const isSelected = square === selectedSquare;
                   const isPlayable = validMoves.includes(square);
                   const rings: string[] = [];
@@ -384,7 +419,7 @@ export default function EnginePlayBoard({ config, embedInCard = false }: { confi
                   if (kingToHighlight === square) rings.push('inset 0 0 0 4px rgba(239,68,68,.9)');
                   const style = rings.length ? { boxShadow: rings.join(', ') } : {};
                   return (
-                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <div style={{ position: 'relative', width: '100%', height: '100%', ...base }}>
                       {children}
                       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', ...style }} />
                     </div>

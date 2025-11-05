@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import ThemeProviderClient from "./components/ThemeProviderClient";
+import AppearanceBootstrap from "@/src/components/board/appearanceBootstrap";
 
 export const metadata: Metadata = {
   title: "Chess Analyzer",
@@ -41,6 +42,7 @@ export default function RootLayout({
             })(window, document, "clarity", "script", "tz2ph4ka92");`}
         </Script>
         <ThemeProviderClient>
+          <AppearanceBootstrap />
           {children}
         </ThemeProviderClient>
       </body>

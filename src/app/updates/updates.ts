@@ -19,6 +19,7 @@ export const UPDATES: UpdateEntry[] = [
       'New embed page /embed/<id> with params: theme=light|dark, auto=0|1, speed=200–5000ms; renders a clean board suitable for iframe.',
       'Build/deploy reliability: purge large engine assets from static output; copy _redirects/_headers to out; fixed R2 .get() body handling.',
       'Privacy: /g and /embed remain noindex by default; we will revisit indexing after OG image support.',
+      'Global Appearance: add “Appearance” in left navigation (palette icon). Choose piece set and board hue; applies to all boards and persists locally.',
     ],
   },
   {

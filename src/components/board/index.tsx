@@ -12,7 +12,8 @@ import EvaluationBar from "./evaluationBar";
 import { CLASSIFICATION_COLORS, PIECE_SETS } from "@/src/constants";
 import { Player } from "@/src/types/game";
 import PlayerHeader from "./playerHeader";
-import { boardHueAtom, pieceSetAtom } from "./states";
+import { boardHueAtom, pieceSetAtom, boardThemeAtom } from "./states";
+import { getSquareColors } from "./colors";
 import { retryStateAtom } from "@/src/sections/analysis/states";
 import tinycolor from "tinycolor2";
 
@@ -45,6 +46,13 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
   const [moveClickTo, setMoveClickTo] = useState<string | null>(null);
   const pieceSet = useAtomValue(pieceSetAtom);
   const boardHue = useAtomValue(boardHueAtom);
+  const boardTheme = useAtomValue(boardThemeAtom);
+  // Hydration guard to match SSR markup on first client render
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
+  const pieceSetUsed = hydrated ? pieceSet : 'chicago';
+  const boardHueUsed = hydrated ? boardHue : 0;
+  const boardThemeUsed = hydrated ? boardTheme : 'classic';
   const [retryState, setRetryState] = useAtom(retryStateAtom);
 
   // Only the piece placement part of the FEN is relevant for rendering pieces
@@ -170,28 +178,52 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
       return [{
         startSquare: bestMove.slice(0, 2),
         endSquare: bestMove.slice(2, 4),
-        color: tinycolor(CLASSIFICATION_COLORS[MoveClassification.Best]).spin(-boardHue).toHexString(),
+        color: tinycolor(CLASSIFICATION_COLORS[MoveClassification.Best]).spin(-boardHueUsed).toHexString(),
       }];
     }
     return [];
-  }, [position, showBestMoveArrow, boardHue]);
+  }, [position, showBestMoveArrow, boardHueUsed]);
 
   const SquareRenderer: any = useMemo(() => {
     return getSquareRenderer({ currentPositionAtom: currentPositionAtom, clickedSquaresAtom, playableSquaresAtom, showPlayerMoveIconAtom, });
   }, [ currentPositionAtom, clickedSquaresAtom, playableSquaresAtom, showPlayerMoveIconAtom ]);
 
+  const squareBaseStyle = useCallback((sq: string) => {
+    const file = 'abcdefgh'.indexOf(sq[0]);
+    const rank = (Number(sq[1]) - 1) | 0;
+    const isDark = ((file + rank) % 2) === 0; // a1 dark
+    const { light, dark } = getSquareColors(boardThemeUsed, boardHueUsed);
+    return { backgroundColor: isDark ? dark : light } as any;
+  }, [boardThemeUsed, boardHueUsed]);
+
   const customPieces = useMemo(() => PIECE_CODES.reduce<any>((acc, piece) => {
     acc[piece] = () => (
-      <img src={`/piece/${pieceSet}/${piece}.svg`} alt={piece} style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
+      <img src={`/piece/${pieceSetUsed}/${piece}.svg`} alt={piece} style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
     );
     return acc;
-  }, {}), [pieceSet]);
+  }, {}), [pieceSetUsed]);
 
   const customBoardStyle = useMemo(() => {
-    const commonBoardStyle = { borderRadius: "5px", boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)" } as any;
-    if (boardHue) return { ...commonBoardStyle, filter: `hue-rotate(${boardHue}deg)` };
-    return commonBoardStyle;
-  }, [boardHue]);
+    // Base
+    let style: any = { borderRadius: "8px", boxShadow: "0 2px 10px rgba(0,0,0,.5)" };
+    // Theme-specific wrapper styles
+    if (boardThemeUsed === 'wood') {
+      style.backgroundImage = 'linear-gradient(45deg, rgba(122,82,38,.25), rgba(60,34,14,.25)), repeating-linear-gradient(90deg, #4b2e17 0px, #4b2e17 8px, #5b3a1d 8px, #5b3a1d 16px)';
+      style.border = '1px solid #3b2412';
+    } else if (boardThemeUsed === 'blackGold') {
+      style.background = 'linear-gradient(180deg,#0e0e11,#17171c)';
+      style.border = '1px solid #a8892c';
+      style.boxShadow = '0 0 0 1px rgba(168,137,44,.5), 0 6px 20px rgba(0,0,0,.6)';
+    } else if (boardThemeUsed === 'blueGray') {
+      style.background = 'linear-gradient(180deg,#1b2735,#0e141b)';
+      style.border = '1px solid #30475e';
+    } else {
+      // classic
+      style.background = undefined;
+      style.border = '1px solid rgba(0,0,0,.2)';
+    }
+    return style;
+  }, [boardThemeUsed]);
 
   return (
     <Grid display="flex" justifyContent="center" alignItems="center" flexWrap="nowrap" width={boardSize}>
@@ -202,7 +234,7 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
         <PlayerHeader color={boardOrientation === Color.White ? Color.Black : Color.White} gameAtom={gameAtom} player={boardOrientation === Color.White ? blackPlayer : whitePlayer} />
         <Grid display="flex" justifyContent="center" alignItems="center" ref={boardRef} width="100%">
           <AnyChessboard
-            key={`${boardId}-${positionPlacement}`}
+            key={`${boardId}-${positionPlacement}-${pieceSetUsed}-${boardThemeUsed}-${boardHueUsed}`}
             options={{
               id: boardId,
               position: positionPlacement,
@@ -211,7 +243,7 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
               animationDurationInMs: 200,
               pieces: customPieces,
               squareRenderer: (({ piece, square, children }: { piece: { pieceType: string } | null; square: string; children?: any; }) => (
-                (SquareRenderer as any)({ square, children })
+                (SquareRenderer as any)({ square, children, style: squareBaseStyle(square) })
               )) as any,
               arrows: customArrows as any,
               canDragPiece: ({ isSparePiece, piece }: { isSparePiece: boolean; piece: { pieceType: string }; square: string | null; }) => !isSparePiece && isPiecePlayable({ piece: piece.pieceType }),
