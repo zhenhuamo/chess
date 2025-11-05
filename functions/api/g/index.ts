@@ -44,7 +44,8 @@ export const onRequestPost: PagesFunction<{ SHARE: R2Bucket } & Record<string, a
     const existed = await ctx.env.SHARE.get(key);
     if (existed) {
       try {
-        const parsed = JSON.parse(existed);
+        const txt = await existed.text();
+        const parsed = JSON.parse(txt);
         if (parsed?.pgn === norm) {
           return json({ id, url: `${origin}/g/${id}`, createdAt: parsed?.createdAt }, { status: 200, headers: noStore() });
         }
@@ -63,7 +64,8 @@ export const onRequestPost: PagesFunction<{ SHARE: R2Bucket } & Record<string, a
       } else {
         const existing = await ctx.env.SHARE.get(altKey);
         try {
-          const parsed = JSON.parse(existing || 'null');
+          const txt = existing ? await existing.text() : '';
+          const parsed = JSON.parse(txt || 'null');
           if (parsed?.pgn === norm) {
             return json({ id: altId, url: `${origin}/g/${altId}`, createdAt: parsed?.createdAt }, { status: 200, headers: noStore() });
           }
@@ -128,4 +130,3 @@ async function hashToBase62(bytes: Uint8Array, len: number): Promise<string> {
   }
   return out.slice(0, len);
 }
-

@@ -22,17 +22,20 @@ export const onRequest: PagesFunction<{ SHARE: R2Bucket } & Record<string, any>>
     return json({ error: 'method_not_allowed' }, { status: 405, headers: cacheHeaders({ allow: 'GET, HEAD' }) });
   }
 
-  const obj = await ctx.env.SHARE.get(key);
-  if (!obj) return json({ error: 'not_found' }, { status: 404, headers: cacheHeaders() });
+  const r2 = await ctx.env.SHARE.get(key);
+  if (!r2) return json({ error: 'not_found' }, { status: 404, headers: cacheHeaders() });
+
+  // Read object as text once; use for ETag and response body
+  const bodyText = await r2.text();
 
   const h = cacheHeaders();
   // ETag: weak SHA-1 of bytes
-  const etag = await sha1Hex(obj);
+  const etag = await sha1Hex(bodyText);
   h.set('etag', `W/"${etag}"`);
 
   if ((url.searchParams.get('format') || '').toLowerCase() === 'raw') {
     try {
-      const parsed = JSON.parse(obj);
+      const parsed = JSON.parse(bodyText);
       const pgn = (parsed?.pgn ?? '').toString();
       h.set('content-type', 'text/plain; charset=utf-8');
       return new Response(pgn, { status: 200, headers: h });
@@ -41,7 +44,7 @@ export const onRequest: PagesFunction<{ SHARE: R2Bucket } & Record<string, any>>
     }
   }
 
-  return new Response(obj, { status: 200, headers: withContentType(h, 'application/json; charset=utf-8') });
+  return new Response(bodyText, { status: 200, headers: withContentType(h, 'application/json; charset=utf-8') });
 };
 
 function JSONResponse(body: any, init?: ResponseInit) { return new Response(JSON.stringify(body), { ...(init || {}), headers: { 'content-type': 'application/json; charset=utf-8', ...(init?.headers || {}) } }); }
@@ -65,4 +68,3 @@ async function sha1Hex(s: string): Promise<string> {
   const arr = new Uint8Array(buf);
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-
