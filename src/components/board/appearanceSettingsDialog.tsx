@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Slider, Stack, Typography } from '@mui/material';
+import { getSquareColors } from './colors';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { boardHueAtom, pieceSetAtom, boardThemeAtom } from './states';
 import { PIECE_SETS } from '@/src/constants';
@@ -109,11 +110,24 @@ export default function AppearanceSettingsDialog({ open, onClose }: { open: bool
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>Board Theme</Typography>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-              {themes.map(t => (
-                <Button key={t.key} size="small" variant={draftTheme===t.key? 'contained':'outlined'} onClick={()=> setDraftTheme(t.key)}>{t.label}</Button>
-              ))}
-            </Stack>
+            <Box sx={{ display:'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.2 }}>
+              {themes.map(t => {
+                const pair = getSquareColors(t.key, draftHue);
+                return (
+                  <Paper key={t.key} variant={draftTheme===t.key? 'outlined':'elevation'} sx={{ p: 1, cursor:'pointer', borderColor: draftTheme===t.key? 'primary.main': undefined }} onClick={()=> setDraftTheme(t.key)}>
+                    {/* 4x4 mini board preview */}
+                    <Box sx={{ display:'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0 }}>
+                      {Array.from({ length: 16 }).map((_, i) => {
+                        const file = i % 4; const rank = Math.floor(i/4);
+                        const isDark = ((file + rank) % 2) === 0; // a1 dark
+                        return <Box key={i} sx={{ width: '100%', height: 18, bgcolor: isDark? pair.dark : pair.light, border: '1px solid rgba(0,0,0,.08)' }} />
+                      })}
+                    </Box>
+                    <Typography variant="caption" sx={{ display:'block', textAlign:'center', mt: 0.5 }}>{t.label}</Typography>
+                  </Paper>
+                );
+              })}
+            </Box>
           </Box>
         </Stack>
       </DialogContent>
