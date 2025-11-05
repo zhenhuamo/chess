@@ -57,6 +57,7 @@ export default function ShareViewStaticPage() {
   const headers = (fullGame as any).getHeaders?.() || {};
   const white = { name: headers.White || 'White' };
   const black = { name: headers.Black || 'Black' };
+  const embedCode = `<iframe src="${location.origin}/embed/${id}?theme=light&auto=0&speed=800" width="420" height="480" frameborder="0"></iframe>`;
 
   const openInAnalyzer = async () => {
     const { openDB } = await import('idb');
@@ -110,6 +111,7 @@ export default function ShareViewStaticPage() {
                 <Button variant="contained" onClick={openInAnalyzer}>Open in Analyzer</Button>
                 <Button onClick={() => navigator.clipboard.writeText(location.href)}>Copy Link</Button>
                 <Button onClick={() => navigator.clipboard.writeText(fullGame.pgn())}>Copy PGN</Button>
+                <Button onClick={() => navigator.clipboard.writeText(embedCode)}>Copy Embed</Button>
               </Box>
             </Box>
           </Box>
@@ -120,4 +122,3 @@ export default function ShareViewStaticPage() {
     </Box>
   );
 }
-

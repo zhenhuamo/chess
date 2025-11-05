@@ -13,22 +13,23 @@
   - R2 绑定：wrangler.toml 中加入 [[r2_buckets]]，binding=SHARE，bucket_name=chess-share。
   - 前端：
     - 分享按钮：src/sections/analysis/panelToolbar/shareButton.tsx，并已接入工具栏 index.tsx。
-    - 查看页：/g/[id] 只读页面，禁用引擎，提供“复制链接/PGN”“Open in Analyzer”。代码：src/app/g/[id]/page.tsx，src/app/g/[id]/head.tsx。
+    - 查看页：/g 静态入口（生产由 _redirects 将 /g/* → /g），禁用引擎，提供“复制链接/PGN”“Open in Analyzer”。代码：src/app/g/page.tsx，src/app/g/head.tsx。
     - 配置：src/config/share.ts（SHARE_API_BASE=/api/g）。
 - 待办
   - 线上 Pages 项目中绑定 R2 桶 chess-share（将 binding 名称设置为 SHARE）。
   - 首次部署后进行全链路验证与观察日志；如需，再决定是否开启软限流。
-  - 二期（可选）：/embed/[id] 和 OG 分享图。
+  - 二期：OG 分享图。
 
 本地快速验证
 1) 准备 R2：
    - wrangler r2 bucket create chess-share
 2) 启动同域 API 与站点：
    - npm run build
-   - wrangler pages dev .vercel/output/static
+   - wrangler pages dev out
 3) 测试：
    - 在分析页走子 → 点击“分享为短链接” → 粘贴访问 /g/<id>
    - 拉取原始 PGN：/api/g/<id>?format=raw
+   - 嵌入页：/embed/<id>、/embed/<id>?auto=1&speed=600、/embed/<id>?theme=dark
 
 非目标（v1）
 - 不做登录/权限控制（链接为公开但不列出）。
@@ -38,8 +39,8 @@
 - 内容寻址（CAS）：对“规范化的 PGN”做 SHA‑256 哈希 → base62 → 取前 10 位作为短 id。同一内容永远得到同一 id，天然去重，不需要清理任务或 TTL。
 - 存储：Cloudflare R2（对象存储，便宜、耐用、几乎零维护）。每条记录是一份小 JSON，包含 PGN 与可选 meta。
 - API：Cloudflare Pages Functions，挂载到站点同域路径 /api/g（而非独立子域）。仅两个端点：POST 保存、GET/HEAD 读取。页面同域调用，无 CORS 复杂度。
-- 前端：在分析页新增“分享”按钮 -> POST /api/g -> 返回 id -> 复制 /g/<id>。新增只读查看页 /g/[id]，用 chess.js 渲染，默认关闭引擎。
-- 二期（可选）：/embed/[id] iframe 嵌入与 OG 分享图。
+- 前端：在分析页新增“分享”按钮 -> POST /api/g -> 返回 id -> 复制 /g/<id>。新增只读查看页 /g（静态入口，生产用 _redirects 将 /g/* → /g），用 chess.js 渲染，默认关闭引擎。
+- 嵌入分享 v1：/embed（静态入口，_redirects 将 /embed/* → /embed）；支持 theme/auto/speed 参数；仅棋盘渲染。
 
 “同域”说明（重要）
 - “同域”（Same-Origin）指“协议 + 主机名 + 端口”完全一致。例如页面是 https://chess-analysis.org/...，那么同域 API 指 https://chess-analysis.org/api/g/...（协议 https、主机 chess-analysis.org、端口 443 一致）。
@@ -125,8 +126,9 @@ Cloudflare 配置
   - src/config/share.ts             （导出 SHARE_API_BASE = "/api/g"）
   - src/sections/analysis/panelToolbar/shareButton.tsx（新增分享按钮）
   - 修改 src/sections/analysis/panelToolbar/index.tsx（加入按钮）
-  - src/app/g/[id]/page.tsx         （只读查看页）
-  - （二期可选）src/app/embed/[id]/page.tsx（嵌入页）
+  - src/app/g/page.tsx              （只读查看页，静态入口）
+  - src/app/embed/page.tsx          （嵌入页，静态入口）
+  - _redirects                      （路由重写：/g/* → /g，/embed/* → /embed；postbuild 会复制到 out）
 - 文档（本文件）：docs/game-sharing-permalinks-cas-r2.md
 
 端点实现要点（伪代码）
@@ -161,7 +163,7 @@ PGN 规范化流程
   - 成功后复制 `${location.origin}/g/${id}`，toast 提示
   - 可提供“复制 PGN”副按钮
 
-- 查看页（/g/[id]）：
+- 查看页（/g 静态入口）：
   - 拉取 /api/g/<id>；处理 404/5xx
   - const g = new Chess(); g.loadPgn(pgn);
   - 渲染：棋盘（只读）、PGN 头（White/Black/Date/Event/Result）
@@ -169,11 +171,17 @@ PGN 规范化流程
   - 按钮：Open in Analyzer（写入 IDB 后跳转 /analyze?gameId=...）、复制链接、复制 PGN
   - SEO：metadata 里 robots 设置为 noindex（除非你希望被收录）
 
+- 嵌入页（/embed）：
+  - 通过 _redirects 将 /embed/* 重写为 /embed，页面在浏览器端解析路径末段作为 id。
+  - 支持 query：theme=light|dark，auto=0|1，speed=200–5000（ms）。
+  - 页面仅渲染棋盘（无引擎/无工具栏），适合 iframe 嵌入。
+  - /g 页提供“Copy Embed”按钮生成 iframe 代码。
+
 缓存策略
 - 写入：no-store
 - 读取：public, immutable, max-age=31536000（id 与内容一一对应，不会改变）
 - CDN：Cloudflare 将缓存 GET /api/g/:id；ETag 支持条件请求
-- 查看页是前端页面，其缓存由站点策略控制，API 缓存不影响页面回源
+- 查看页/嵌入页是静态入口页面，其缓存由站点策略控制；数据通过 API 拉取，遵循 API 的缓存策略。
 
 错误处理与用户体验
 - POST 失败：toast “分享失败，请稍后再试”，控制台输出细节
@@ -191,11 +199,7 @@ PGN 规范化流程
 - 如开启限流，给出远高于正常使用的阈值（如 200 次/小时/IP），并允许通过 env 配置。
 
 二期（可选增强）
-- /embed/[id]：iframe 嵌入
-  - 参数：theme=dark|light，auto=0|1（自动播放），speed=每步毫秒
-  - 仅棋盘，去工具栏，禁用引擎
-  - 提供尺寸与自适应建议
-- OG 分享图
+- OG 分享图（进行中）
   - 路由：/g/[id]/opengraph-image → 1200x630 PNG
   - 以 PGN 计算终局 FEN（可前端预计算传参，或在函数内用轻量 PGN/FEN 工具）
   - 以 SVG 渲染棋盘再转 PNG（Satori/Resvg 或兼容 Workers 的库）
@@ -206,11 +210,12 @@ PGN 规范化流程
 
 测试清单
 - 本地：
-  - wrangler pages dev .vercel/output/static
+  - wrangler pages dev out
   - curl -X POST http://127.0.0.1:8788/api/g -H 'content-type: application/json' -d '{"pgn":"[Event \"Casual\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *"}'
   - curl http://127.0.0.1:8788/api/g/<id>
   - curl http://127.0.0.1:8788/api/g/<id>?format=raw
   - 浏览 http://127.0.0.1:8788/g/<id> 验证棋盘/走法加载
+  - 浏览 http://127.0.0.1:8788/embed/<id>?auto=1&speed=600 验证嵌入页
 - 生产：
   - POST 相同 PGN → 返回相同 id（幂等）
   - PGN 略有不同 → 返回不同 id

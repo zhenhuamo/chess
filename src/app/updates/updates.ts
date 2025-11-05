@@ -8,6 +8,20 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-05',
+    version: 'v2.0.0',
+    title: 'Game Sharing: Permanent Links + Embed',
+    items: [
+      'Permanent share links are live: POST /api/g stores PGN in R2 using content‑addressed ids; open /g/<id> to view a read‑only board and moves.',
+      'Same‑origin API on Pages Functions with long‑term caching (immutable + ETag); JSON and ?format=raw supported.',
+      'Analyze page adds a “Share as short link” button (toolbar, next to Save).',
+      'Viewer page switched to static entry /g with Cloudflare Pages redirects (/g/* → /g). Added “Copy Embed” and “Open in Analyzer”.',
+      'New embed page /embed/<id> with params: theme=light|dark, auto=0|1, speed=200–5000ms; renders a clean board suitable for iframe.',
+      'Build/deploy reliability: purge large engine assets from static output; copy _redirects/_headers to out; fixed R2 .get() body handling.',
+      'Privacy: /g and /embed remain noindex by default; we will revisit indexing after OG image support.',
+    ],
+  },
+  {
     date: '2025-11-03',
     version: 'v1.9.0',
     title: 'Opening Book Expansion + Fallback & Reliability Fixes',
