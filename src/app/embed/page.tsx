@@ -62,7 +62,7 @@ export default function EmbedPage() {
           setGame(d);
         }
       } catch (e: any) {
-        if (!cancelled) setErr(e?.message || '加载失败');
+        if (!cancelled) setErr(e?.message || 'Failed to load');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -97,7 +97,7 @@ export default function EmbedPage() {
     </Box>;
   }
   if (err || !fullGame) {
-    return <Box sx={{ p: 2, textAlign: 'center', color: '#888', fontSize: 14 }}>链接不存在或已过期。</Box>;
+    return <Box sx={{ p: 2, textAlign: 'center', color: '#888', fontSize: 14 }}>Link does not exist or has expired.</Box>;
   }
 
   const headers = (fullGame as any).getHeaders?.() || {};

@@ -21,22 +21,22 @@ export default function ShareButton() {
       if (!resp.ok) {
         const text = await resp.text().catch(()=>'');
         console.error('Share failed', resp.status, text);
-        alert('分享失败，请稍后重试');
+        alert('Share failed, please try again later');
         return;
       }
       const data = await resp.json();
       const id = data?.id;
       const url = `${location.origin}/g/${id}`;
       await navigator.clipboard?.writeText?.(url);
-      alert('分享链接已复制:\n' + url);
+      alert('Share link copied:\n' + url);
     } catch (e) {
       console.error('Share exception', e);
-      alert('分享失败，请稍后重试');
+      alert('Share failed, please try again later');
     }
   };
 
   return (
-    <Tooltip title="分享为短链接">
+    <Tooltip title="Share as Short Link">
       <Grid>
         <IconButton disabled={disabled} onClick={onShare} sx={{ paddingX: 1.2, paddingY: 0.5 }}>
           <Icon icon="ri:share-forward-line" />
@@ -45,4 +45,3 @@ export default function ShareButton() {
     </Tooltip>
   );
 }
-

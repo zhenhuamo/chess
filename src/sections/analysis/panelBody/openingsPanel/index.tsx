@@ -56,12 +56,12 @@ export default function OpeningsPanel() {
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         {right}
-        <Tooltip title="只下一步">
+      <Tooltip title="Play next move">
           <IconButton size="small" onClick={() => playFirst(uci)}>
             <Icon icon="ri:arrow-right-s-line" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="预演多步（结合引擎主变）">
+      <Tooltip title="Preview multiple moves (with engine main PV)">
           <IconButton size="small" onClick={() => previewLine(uci)}>
             <Icon icon="ri:play-line" />
           </IconButton>

@@ -19,7 +19,7 @@ export default function ShareViewStaticPage() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!id) { setErr("无效的链接"); setLoading(false); return; }
+    if (!id) { setErr("Invalid link"); setLoading(false); return; }
     const run = async () => {
       try {
         setLoading(true);
@@ -34,7 +34,7 @@ export default function ShareViewStaticPage() {
           setGame(g);
         }
       } catch (e: any) {
-        if (!cancelled) setErr(e?.message || '加载失败');
+        if (!cancelled) setErr(e?.message || 'Failed to load');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -50,7 +50,7 @@ export default function ShareViewStaticPage() {
   }
   if (err || !fullGame) {
     return <Box sx={{ p: 2, textAlign: 'center' }}>
-      <Typography color="error">{err || '链接不存在或已过期。'}</Typography>
+      <Typography color="error">{err || 'Link does not exist or has expired.'}</Typography>
     </Box>;
   }
 
@@ -116,7 +116,7 @@ export default function ShareViewStaticPage() {
             </Box>
           </Box>
 
-          <Typography variant="caption" color="text.secondary">此页面不索引（noindex）。</Typography>
+          <Typography variant="caption" color="text.secondary">This page is not indexed (noindex).</Typography>
         </Stack>
       </Paper>
     </Box>

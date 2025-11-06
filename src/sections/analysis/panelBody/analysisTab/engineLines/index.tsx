@@ -43,7 +43,7 @@ export default function EngineLines(props: GridProps) {
   return (
     <Grid display="flex" alignItems="stretch" justifyContent="center" width="100%" {...props}>
       <Stack spacing={0.5} sx={{ width: '100%' }}>
-        <Typography variant="caption" color="text.secondary" title="提示：点击一条线可预演前10步；按 1/2/3 可下一步对应的 PV 首步">Engine Lines</Typography>
+        <Typography variant="caption" color="text.secondary" title="Tip: Click a line to preview the first 10 moves; press 1/2/3 to play the first move of the corresponding PV">Engine Lines</Typography>
         <Box sx={{
           height: 260,
           minHeight: 200,

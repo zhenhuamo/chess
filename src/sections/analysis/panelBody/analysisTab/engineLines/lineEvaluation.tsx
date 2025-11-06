@@ -52,7 +52,7 @@ export default function LineEvaluation({ line }: { line: LineEval }) {
       spacing={0.5}
       onClick={playPreview}
       sx={{ p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, cursor: sanSeq.length ? 'pointer' : 'default' }}
-      title={sanSeq.length ? '点击预演这条线路（前10步）' : undefined}
+      title={sanSeq.length ? 'Click to preview this line (first 10 moves)' : undefined}
     >
       <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap: 1 }}>
         <Typography variant="body2">PV#{line.multiPv}</Typography>
@@ -60,12 +60,12 @@ export default function LineEvaluation({ line }: { line: LineEval }) {
           <Typography variant="caption" color="text.secondary">Depth {line.depth} · {label}</Typography>
           {sanSeq.length > 0 && (
             <>
-              <Tooltip title="只下一步 (PV 首步)">
+              <Tooltip title="Play one move (PV first)">
                 <IconButton size="small" onClick={playFirst} sx={{ ml: 0.5 }}>
                   <Icon icon="ri:arrow-right-s-line" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="预演多步 (前10步)">
+              <Tooltip title="Preview multiple moves (first 10)">
                 <IconButton size="small" onClick={(e) => { e.stopPropagation(); playPreview(); }}>
                   <Icon icon="ri:play-line" />
                 </IconButton>
