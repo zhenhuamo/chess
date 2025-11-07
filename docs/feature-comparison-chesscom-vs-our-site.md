@@ -50,3 +50,35 @@
 ---
 最后更新：2025-11-01
 文件维护者：内部文档（可在 PR 中直接更新此清单）
+
+## 6) 用户需求导向的优化路线（草案）
+
+- 分享/嵌入闭环（优先级：高｜工作量：S–M）
+  - 分享弹窗改 Snackbar/Popover，提供“复制链接/PGN/Embed”；移动端支持 Web Share。
+  - Embed 可配置：theme/auto/speed/size 选项，一键生成 iframe 代码。
+  - 深链步数：支持 /g/<id>?ply=N 打开定位到第 N 步；OG 图高亮最后一步。
+  - 涉及：`src/sections/analysis/panelToolbar/shareButton.tsx`、`src/app/g/page.tsx`、`functions/g/[id]/opengraph-image.ts`。
+
+- 训练模式 v1（优先级：高｜工作量：M）
+  - “今日 10 题”：从本地最近对局抽取 Inaccuracy/Mistake/Blunder 位，限时计分，错题重练。
+  - 新增 /train 页面（纯前端，复用现有引擎线与分类）。
+
+- 错误解释（优先级：高｜工作量：S–M）
+  - 基于 PV 差异/子力损失/吃回漏算生成“一句话解释”，在 Moves 列表行右侧展示可展开说明。
+  - 涉及：`src/lib/engine/helpers/moveClassification.ts`、`src/sections/analysis/panelBody/movesTab/`。
+
+- 开局库可操作（优先级：中高｜工作量：M）
+  - 公开书：显示热门着法、胜率、陷阱标识（trap）；一键加入训练队列。
+  - 个人库：并排显示 Mine% vs Global%，条形图可视化；重建进度与按钮反馈。
+  - 涉及：`src/hooks/useLightBook.ts`、`src/hooks/usePersonalOpeningBook.ts`、`src/sections/analysis/panelBody/openingsPanel/`。
+
+- Insights v1（优先级：中｜工作量：M）
+  - 分阶段（开/中/终）与错因分布的聚合卡片；以 Recharts 实现，轻量可读。
+
+- 运维/隐私（优先级：中｜工作量：S）
+  - 分享删除：POST 返回 deleteToken，支持 DELETE /api/g/:id。
+  - 软限流与观测：每 IP 大额度限流开关 + 日志/告警接入。
+
+备注
+- 上述均为“本地优先/同域 API”的轻量实现路径，保持零后端运维为前提。
+- 具体排期可按“分享闭环 → 训练 → 解释 → 开局库 → Insights → 运维”的顺序推进。

@@ -17,6 +17,17 @@ export default function ShareViewStaticPage() {
   const localGameAtom = useMemo(() => atom(new Chess()), []);
   const [game, setGame] = useAtom(localGameAtom);
 
+  const [targetPly, setTargetPly] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Parse ?ply from URL on client
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const ply = Number(sp.get('ply') || '');
+      if (Number.isFinite(ply) && ply >= 0) setTargetPly(Math.floor(ply));
+    } catch {}
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     if (!id) { setErr("Invalid link"); setLoading(false); return; }
@@ -31,7 +42,18 @@ export default function ShareViewStaticPage() {
         g.loadPgn(pgn);
         if (!cancelled) {
           setFullGame(g);
-          setGame(g);
+          // If deep-link ply provided, display only up to that ply
+          if (typeof targetPly === 'number' && targetPly >= 0) {
+            const headers = (g as any).getHeaders?.() || {};
+            const startFen = headers?.FEN as string | undefined;
+            const moves = g.history();
+            const d = new Chess(startFen);
+            const upto = Math.min(targetPly, moves.length);
+            for (let i = 0; i < upto; i++) { try { d.move(moves[i]); } catch {} }
+            setGame(d);
+          } else {
+            setGame(g);
+          }
         }
       } catch (e: any) {
         if (!cancelled) setErr(e?.message || 'Failed to load');
@@ -41,7 +63,7 @@ export default function ShareViewStaticPage() {
     };
     run();
     return () => { cancelled = true; };
-  }, [id, setGame]);
+  }, [id, setGame, targetPly]);
 
   if (loading) {
     return <Box sx={{ display: 'flex', minHeight: '60vh', alignItems: 'center', justifyContent: 'center' }}>

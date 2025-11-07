@@ -39,12 +39,14 @@ export const onRequestGet: PagesFunction<{ SHARE: R2Bucket }> = async (ctx) => {
     const game = new Chess();
     try { game.loadPgn(String(pgn || '')); } catch {}
     const fen = game.fen();
+    const verbose = game.history({ verbose: true }) as Array<{ from: string; to: string; san: string }>;
+    const last = verbose.at(-1) || null;
 
     // Build SVG with real pieces
     const origin = `${url.protocol}//${url.host}`;
     let svg: string;
     try {
-      svg = await buildSvgWithBoard({ title, sub, foot, fen, assetOrigin: origin, pieceSet: 'cburnett' });
+      svg = await buildSvgWithBoard({ title, sub, foot, fen, assetOrigin: origin, pieceSet: 'cburnett', highlight: last ? { from: last.from, to: last.to } : undefined });
     } catch {
       // Fallback to text-only motif if piece assets fail to load
       svg = buildSvg({ title, sub, foot });
@@ -114,9 +116,9 @@ function renderBoardMotif(x: number, y: number, size: number): string {
 
 // Build full SVG with real board and pieces rendered from FEN.
 async function buildSvgWithBoard(opts: {
-  title: string; sub: string; foot: string; fen: string; assetOrigin: string; pieceSet: string;
+  title: string; sub: string; foot: string; fen: string; assetOrigin: string; pieceSet: string; highlight?: { from: string; to: string };
 }): Promise<string> {
-  const { title, sub, foot, fen, assetOrigin, pieceSet } = opts;
+  const { title, sub, foot, fen, assetOrigin, pieceSet, highlight } = opts;
   const W = 1200, H = 630;
   const boardX = 700, boardY = 50, boardSize = 560; // large board area
   const cell = Math.floor(boardSize / 8);
@@ -136,6 +138,7 @@ async function buildSvgWithBoard(opts: {
 
   const boardSquares = renderBoardSquares(boardX, boardY, boardSize);
   const piecesLayer = await renderPiecesFromFen(fen, boardX, boardY, cell, assetOrigin, pieceSet);
+  const highlightLayer = highlight ? renderHighlight(boardX, boardY, cell, highlight.from, highlight.to) : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -144,6 +147,7 @@ async function buildSvgWithBoard(opts: {
   ${titleBlock}
   ${boardSquares}
   ${piecesLayer}
+  ${highlightLayer}
 </svg>`;
 }
 
@@ -215,4 +219,35 @@ async function fetchPieceDataUri(origin: string, set: string, key: string): Prom
   const svg = await resp.text();
   const base64 = btoa(unescape(encodeURIComponent(svg)));
   return `data:image/svg+xml;base64,${base64}`;
+}
+
+function sqToRC(sq: string): { r: number; c: number } {
+  // a1 -> r=7,c=0 ; a8 -> r=0,c=0 ; h1 -> r=7,c=7
+  const file = sq[0]?.toLowerCase() || 'a';
+  const rank = Number(sq[1] || '1');
+  const c = Math.max(0, Math.min(7, file.charCodeAt(0) - 'a'.charCodeAt(0)));
+  const r = Math.max(0, Math.min(7, 8 - rank));
+  return { r, c };
+}
+
+function renderHighlight(x: number, y: number, cell: number, from: string, to: string): string {
+  const a = sqToRC(from), b = sqToRC(to);
+  const fx = x + a.c * cell, fy = y + a.r * cell;
+  const tx = x + b.c * cell, ty = y + b.r * cell;
+  const pad = Math.round(cell * 0.06);
+  const overlays = [
+    `<rect x="${fx + pad}" y="${fy + pad}" width="${cell - 2*pad}" height="${cell - 2*pad}" fill="#fcd34d" fill-opacity="0.35" stroke="#f59e0b" stroke-width="3" rx="6" ry="6"/>`,
+    `<rect x="${tx + pad}" y="${ty + pad}" width="${cell - 2*pad}" height="${cell - 2*pad}" fill="#86efac" fill-opacity="0.35" stroke="#10b981" stroke-width="3" rx="6" ry="6"/>`,
+  ];
+  // Arrow from center of from -> to
+  const cx1 = fx + cell/2, cy1 = fy + cell/2;
+  const cx2 = tx + cell/2, cy2 = ty + cell/2;
+  const arrow = `
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
+      </marker>
+    </defs>
+    <line x1="${cx1}" y1="${cy1}" x2="${cx2}" y2="${cy2}" stroke="#10b981" stroke-width="6" stroke-opacity="0.8" marker-end="url(#arrow)" />`;
+  return overlays.join('\n') + '\n' + arrow;
 }
