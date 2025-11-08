@@ -54,10 +54,11 @@
 ## 6) 用户需求导向的优化路线（草案）
 
 - 分享/嵌入闭环（优先级：高｜工作量：S–M）
-  - 分享弹窗改 Snackbar/Popover，提供“复制链接/PGN/Embed”；移动端支持 Web Share。
-  - Embed 可配置：theme/auto/speed/size 选项，一键生成 iframe 代码。
-  - 深链步数：支持 /g/<id>?ply=N 打开定位到第 N 步；OG 图高亮最后一步。
-  - 涉及：`src/sections/analysis/panelToolbar/shareButton.tsx`、`src/app/g/page.tsx`、`functions/g/[id]/opengraph-image.ts`。
+  - [已完成] 分享弹窗改为 Popover + Snackbar，提供“复制链接/PGN/Embed”，并支持移动端 System Share（Web Share）；路径：`src/sections/analysis/panelToolbar/shareButton.tsx`。
+  - [已完成] Embed 可配置：theme/auto/speed/width/height，一键生成 iframe 代码；路径：同上。
+  - [已完成] 深链步数：/g/<id>?ply=N 打开定位到第 N 步；路径：`src/app/g/page.tsx`。
+  - [已完成] OG 分享图高亮最后一步（起止两格 + 箭头）；路径：`functions/g/[id]/opengraph-image.ts`。
+  - 后续可选优化：/g 页面内也提供可配置的 Embed 选项（与工具栏 Popover 一致）。
 
 - 训练模式 v1（优先级：高｜工作量：M）
   - “今日 10 题”：从本地最近对局抽取 Inaccuracy/Mistake/Blunder 位，限时计分，错题重练。

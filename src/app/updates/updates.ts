@@ -8,6 +8,17 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-08',
+    version: 'v2.1.0',
+    title: 'Share/Embed UX: Popover, Deep-Link Ply, Configurable Embed, OG Highlight',
+    items: [
+      'Share UI switched from alerts to a non-blocking Popover + Snackbar: Copy Link, Copy PGN, Open, and System Share (when supported).',
+      'Configurable embed generator in the Share Popover: theme(light/dark), auto playback, speed (200–5000ms), width/height; one-click “Copy Embed”.',
+      'Deep-link to a specific step via /g/<id>?ply=N; the viewer replays only up to N plies.',
+      'OG image now highlights the last move (from/to squares with an arrow) for richer link previews.',
+    ],
+  },
+  {
     date: '2025-11-05',
     version: 'v2.0.0',
     title: 'Game Sharing: Permanent Links + Embed',
