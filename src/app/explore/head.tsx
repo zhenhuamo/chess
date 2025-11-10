@@ -6,6 +6,7 @@ export default function Head() {
   ].join(', ');
   const url = '/explore';
   const image = '/og/explore.png';
+
   return (
     <>
       <title>{title}</title>
@@ -21,6 +22,34 @@ export default function Head() {
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
+
+      {/* 结构化数据 */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "Position Explorer",
+            "description": "Free data-driven chess analysis tool with opening statistics, model games, and practice features",
+            "url": url,
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Web Browser",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": [
+              "Chess position analysis",
+              "Opening statistics and win rates",
+              "Model game database",
+              "Practice queue system",
+              "FEN position support"
+            ]
+          })
+        }}
+      />
     </>
   );
 }

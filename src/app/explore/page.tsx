@@ -334,70 +334,246 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
   const blackPlayer = useMemo(() => ({ name: 'Black' }), []);
 
   return (
-    <Box sx={{ p: { xs: 1, md: 2 } }}>
-      {/* TOOL SECTION */}
-      <Paper variant="outlined" sx={{ p: { xs: 1, md: 2 }, width: '100%', maxWidth: 1200, mx: 'auto' }}>
-        <Stack spacing={1}>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Position Explorer</Typography>
-          {/* Landing intro */}
-          <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary">Study the next moves for any position: hot choices, win rates, a mini opening tree, and model games. Add lines to your practice queue.</Typography>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              <Chip size="small" label={`Source: ${indexSource ?? '—'}`} variant="outlined" />
-              {!!fromCache && <Chip size="small" label={`Index: ${fromCache}`} variant="outlined" />}
-              {manifestMeta?.date && <Chip size="small" label={`Updated: ${manifestMeta?.date}`} variant="outlined" />}
-              {manifestMeta?.coverage && <Chip size="small" label={`Coverage: ${manifestMeta.coverage}`} variant="outlined" />}
-              {Number.isFinite(Number(manifestMeta?.totalGames)) && <Chip size="small" label={`Total: ${formatInt(manifestMeta?.totalGames)}` } variant="outlined" />}
-              <Chip size="small" label={`Nodes: ${formatInt(index?.size ?? 0)}`} variant="outlined" />
-              <Chip size="small" label={`Training: ${formatInt(trainingQueueSize)}`} variant="outlined" />
-            </Stack>
-          </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <TextField
-              size="small"
-              label="FEN (position code)"
-              placeholder="Paste a 6-field FEN, e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-              fullWidth
-              value={fen}
-              onChange={(e)=> setFen(e.target.value)}
-              onKeyDown={(e)=> { if (e.key === 'Enter') { e.preventDefault(); onApplyFen(); } }}
-              error={!!fenError}
-              helperText={fenError || 'Press Enter or click Apply. You can also use the example buttons.'}
-            />
-            <Tooltip title="What is FEN? A standardized 6-field code for chess positions."><span><IconButton size="small"><HelpOutlineOutlinedIcon fontSize='small' /></IconButton></span></Tooltip>
-            <Button variant="outlined" onClick={onApplyFen}>Apply FEN</Button>
-            <Button size="small" onClick={()=> { try { const f = game.fen(); setFen(f); setFenError(null); } catch {} }}>Use Board</Button>
-            <Button size="small" onClick={()=> setFileKey('lichess-4000.pgn')}>4000</Button>
-            <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(AUG)</Button>
-            <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
-            <Button size="small" variant="outlined" onClick={()=> buildIndex(true)}>Rebuild</Button>
-            <Button size="small" variant="contained" onClick={onPracticeNow}>Practice Now (5)</Button>
-            <Button size="small" onClick={onStartPractice}>Start Practice</Button>
-            {(fallbackInfo.type === 'none') && (
-              <Stack direction="row" spacing={0.5}>
+    <Box sx={{ p: { xs: 1, md: 2 }, maxWidth: 1400, mx: 'auto' }}>
+      {/* HEADER SECTION */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, md: 3 },
+          mb: 3,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          borderRadius: 2
+        }}
+      >
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
+          Position Explorer
+        </Typography>
+        <Typography variant="body1" sx={{ opacity: 0.9, mb: 2 }}>
+          Study the next moves for any position: hot choices, win rates, a mini opening tree, and model games. Add lines to your practice queue.
+        </Typography>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Chip
+            size="small"
+            label={`Source: ${indexSource ?? '—'}`}
+            sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+          />
+          {!!fromCache && <Chip size="small" label={`Index: ${fromCache}`} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />}
+          {manifestMeta?.date && <Chip size="small" label={`Updated: ${manifestMeta?.date}`} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />}
+          {manifestMeta?.coverage && <Chip size="small" label={`Coverage: ${manifestMeta.coverage}`} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />}
+          {Number.isFinite(Number(manifestMeta?.totalGames)) && (
+            <Chip size="small" label={`Total: ${formatInt(manifestMeta?.totalGames)}`} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />
+          )}
+          <Chip size="small" label={`Nodes: ${formatInt(index?.size ?? 0)}`} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />
+          <Chip size="small" label={`Training: ${formatInt(trainingQueueSize)}`} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }} />
+        </Stack>
+      </Paper>
+
+      {/* MAIN TOOL SECTION */}
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3, borderRadius: 2, bgcolor: 'background.default', backgroundImage: 'none' }}>
+        <Stack spacing={3}>
+          {/* FEN INPUT SECTION */}
+          <Stack spacing={2}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Analyze Position
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="FEN Position Code"
+                placeholder="Paste a 6-field FEN, e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                value={fen}
+                onChange={(e)=> setFen(e.target.value)}
+                onKeyDown={(e)=> { if (e.key === 'Enter') { e.preventDefault(); onApplyFen(); } }}
+                error={!!fenError}
+                helperText={fenError || 'Press Enter to apply. FEN is a standardized code for chess positions.'}
+                InputProps={{
+                  endAdornment: (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Tooltip title="What is FEN? A standardized 6-field code for chess positions.">
+                        <IconButton size="small">
+                          <HelpOutlineOutlinedIcon fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  )
+                }}
+              />
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+              >
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={onApplyFen}
+                  startIcon={<PlayArrowRoundedIcon />}
+                >
+                  Apply FEN
+                </Button>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={()=> { try { const f = game.fen(); setFen(f); setFenError(null); } catch {} }}
+                >
+                  Use Current Board
+                </Button>
+              </Stack>
+
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                  Quick examples:
+                </Typography>
                 {['e2e4','d2d4','c2c4','g1f3'].map((u)=> (
-                  <Button key={u} size="small" onClick={()=> applyExampleMove(u, setFen, onApplyFen)}>Example {uciToSan(new Chess().fen(), u)}</Button>
+                  <Button
+                    key={u}
+                    size="small"
+                    variant="text"
+                    onClick={()=> applyExampleMove(u, setFen, onApplyFen)}
+                  >
+                    {uciToSan(new Chess().fen(), u)}
+                  </Button>
                 ))}
               </Stack>
-            )}
+            </Stack>
           </Stack>
 
+          {/* DATASET AND ACTIONS */}
+          <Divider />
+          <Stack spacing={2}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Dataset & Actions
+            </Typography>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                  Dataset:
+                </Typography>
+                <Button
+                  size="small"
+                  variant={fileKey === 'lichess-4000.pgn' ? 'contained' : 'outlined'}
+                  onClick={()=> setFileKey('lichess-4000.pgn')}
+                >
+                  4000+
+                </Button>
+                <Button
+                  size="small"
+                  variant={fileKey === 'lichess-2025-08-2000.pgn' ? 'contained' : 'outlined'}
+                  onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}
+                >
+                  2000 (AUG)
+                </Button>
+                <Button
+                  size="small"
+                  variant={fileKey === 'lichess-2000.pgn' ? 'contained' : 'outlined'}
+                  onClick={()=> setFileKey('lichess-2000.pgn')}
+                >
+                  2000
+                </Button>
+              </Stack>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={()=> buildIndex(true)}
+                startIcon={<RestartAltIcon />}
+              >
+                Rebuild Index
+              </Button>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+            >
+              <Button
+                fullWidth
+                size="large"
+                variant="contained"
+                color="secondary"
+                onClick={onPracticeNow}
+                startIcon={<AddTaskRoundedIcon />}
+              >
+                Practice Now (5)
+              </Button>
+              <Button
+                fullWidth
+                size="large"
+                variant="outlined"
+                onClick={onStartPractice}
+                startIcon={<PlayArrowRoundedIcon />}
+              >
+                Start Practice
+              </Button>
+            </Stack>
+          </Stack>
+
+          {/* LOADING & STATUS SECTION */}
           {loading && (
-            <Box sx={{ display:'flex', alignItems:'center', gap:1 }}><CircularProgress size={18} /> <Typography variant="body2">{progress}</Typography></Box>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                bgcolor: 'background.default',
+                border: '1px dashed',
+                borderColor: 'primary.main',
+                borderRadius: 2,
+                textAlign: 'center',
+                backgroundImage: 'none'
+              }}
+            >
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Building Position Index
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {progress}
+              </Typography>
+            </Paper>
           )}
-          {err && (<Alert severity="error" variant="outlined">{err}</Alert>)}
-          {fromCache && (<Typography variant="caption" color="text.secondary">Loaded · {indexSource} · {fromCache}</Typography>)}
+
+          {err && (
+            <Alert severity="error" variant="outlined" sx={{ borderRadius: 2 }}>
+              {err}
+            </Alert>
+          )}
+
+          {fromCache && (
+            <Alert severity="success" variant="outlined" icon={<InfoOutlinedIcon />} sx={{ borderRadius: 2 }}>
+              Loaded from {indexSource} · {fromCache}
+            </Alert>
+          )}
+
           {(fallbackInfo.type !== 'fen4') && (
-            <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ py: 0.5 }}>
+            <Alert
+              severity="info"
+              icon={<InfoOutlinedIcon />}
+              sx={{ borderRadius: 2 }}
+            >
               {fallbackInfo.type === 'fen2' && 'No data for FEN-4. Showing aggregated FEN-2 stats.'}
               {fallbackInfo.type === 'ancestor' && `Fell back to the nearest ancestor with data (${fallbackInfo.depth} plies earlier).`}
               {fallbackInfo.type === 'none' && 'No data found. Try stepping back a half-move or start from an example e4/d4/c4/Nf3.'}
             </Alert>
           )}
 
-          <Divider />
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ flex: '0 0 420px' }}>
+          {/* CHESS BOARD & ANALYSIS SECTION */}
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3}>
+            {/* CHESS BOARD */}
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                flex: { xs: '1 1 auto', lg: '0 0 480px' },
+                display: 'flex',
+                justifyContent: 'center',
+                borderRadius: 2
+              }}
+            >
               <Board
                 id="explore"
                 canPlay={!preview.active}
@@ -408,181 +584,832 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
                 showEvaluationBar={false}
                 extraArrows={computePreviewArrows(preview)}
               />
-            </Box>
-            <Box sx={{ flex: '1 1 360px', minWidth: 320 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                <Typography variant="subtitle2">Top Moves</Typography>
-                <ToggleButtonGroup size="small" value={sortKey} exclusive onChange={(_,v)=> v && setSortKey(v)}>
-                  <ToggleButton value="hot"><SortRoundedIcon sx={{ fontSize: 16, mr: 0.5 }} />Hot</ToggleButton>
-                  <ToggleButton value="win">Win%</ToggleButton>
-                </ToggleButtonGroup>
-              </Stack>
-              <Stack spacing={0.5}>
-                {topMoves.map((m,i)=> (
-                  <Paper key={i} variant="outlined" sx={{ p: 1, display:'flex', alignItems:'center', justifyContent:'space-between', gap: 1 }}>
-                    <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                      <Typography variant="body2" sx={{ fontFamily:'monospace' }}>{m.san || m.uci}</Typography>
-                      <Typography variant="caption" color="text.secondary">{m.games} · {typeof m.win==='number'? `${Math.round(m.win*100)}%`:'—'}</Typography>
-                    </Box>
-                    <Box sx={{ display:'flex', alignItems:'center', gap:0.5 }}>
-                      <Tooltip title="Play"><span><IconButton size="small" onClick={()=> onPlayMove(m.uci, game.fen(), playMove)}><PlayArrowRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                      <Tooltip title="Preview 10 plies"><span><IconButton size="small" onClick={()=> onPreviewMoveInline(m.uci, game.fen(), index, setPreview)}><PreviewRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                      <Tooltip title="Add to Training"><span><IconButton size="small" onClick={()=> onAddToTraining(game.fen(), [m.uci], setTrainingQueueSize)}><AddTaskRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                    </Box>
-                  </Paper>
-                ))}
-                {(!topMoves.length) && <Typography variant="body2" color="text.secondary">No data for this position. Try reducing depth or switch dataset.</Typography>}
+            </Paper>
 
-                <Typography variant="subtitle2" sx={{ mt: 2 }}>Mini Book</Typography>
-                <MiniBook indexMap={index || new Map()} rootFen={game.fen()} depth={2} topN={3} onMove={(uci)=> onPlayMove(uci, game.fen(), playMove)} />
-                <ModelGames indexMap={index || new Map()} rootFen={game.fen()} />
-
-                {preview.active && (
-                  <Paper variant="outlined" sx={{ mt: 2, p: 1 }}>
+            {/* ANALYSIS PANEL */}
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 1,
+                p: 2,
+                borderRadius: 2,
+                minWidth: 0,
+                bgcolor: 'background.default'
+                , backgroundImage: 'none' 
+              }}
+            >
+              <Stack spacing={3}>
+                {/* TOP MOVES SECTION */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: 'background.default',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  <Stack spacing={2}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <Typography variant="subtitle2">Preview</Typography>
-                      <Box>
-                        <Tooltip title="Previous"><span><IconButton size="small" onClick={()=> previewStep(preview, -1, setPreview, resetPreviewBoard, addMovesToPreview)}><SkipPreviousRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                        <Tooltip title={preview.playing ? 'Pause' : 'Play'}><span><IconButton size="small" onClick={()=> previewToggle(preview, setPreview, previewTimerRef, resetPreviewBoard, addMovesToPreview)}>{preview.playing ? <PauseRoundedIcon fontSize='small'/> : <PlayArrowRoundedIcon fontSize='small'/>}</IconButton></span></Tooltip>
-                        <Tooltip title="Next"><span><IconButton size="small" onClick={()=> previewStep(preview, 1, setPreview, resetPreviewBoard, addMovesToPreview)}><SkipNextRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                        <Tooltip title="Replay from start"><span><IconButton size="small" onClick={()=> previewReplay(preview, resetPreviewBoard, addMovesToPreview, previewTimerRef)}><RestartAltIcon fontSize='small' /></IconButton></span></Tooltip>
-                        <Tooltip title="Apply to board (Enter)"><span><IconButton size="small" onClick={()=> previewApply(preview, addMoves, setPreview)}><PlayArrowRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                        <Tooltip title="Close (Esc)"><span><IconButton size="small" onClick={()=> previewClose(setPreview, previewTimerRef)}><CloseRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
-                      </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Top Moves
+                    </Typography>
+                    <ToggleButtonGroup
+                      size="small"
+                      value={sortKey}
+                      exclusive
+                      onChange={(_,v)=> v && setSortKey(v)}
+                    >
+                      <ToggleButton value="hot">
+                        <SortRoundedIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Hot
+                      </ToggleButton>
+                      <ToggleButton value="win">Win%</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Stack>
+
+                  {topMoves.length > 0 ? (
+                    <Stack spacing={1}>
+                      {topMoves.map((m, i) => (
+                        <Paper
+                          key={i}
+                          variant="outlined"
+                          sx={{
+                            p: 1.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1,
+                            bgcolor: 'background.default',
+                            backgroundImage: 'none',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              bgcolor: 'action.hover',
+                              transform: 'translateX(2px)'
+                            }
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box
+                              sx={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                bgcolor: 'primary.main',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.875rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              {i + 1}
+                            </Box>
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ fontFamily: 'monospace' }}>
+                                {m.san || m.uci}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {m.games.toLocaleString()} games
+                                {typeof m.win === 'number' ? ` · ${Math.round(m.win * 100)}%` : ' · —'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Tooltip title="Play this move">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={()=> onPlayMove(m.uci, game.fen(), playMove)}
+                              >
+                                <PlayArrowRoundedIcon fontSize='small' />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Preview 10 plies">
+                              <IconButton
+                                size="small"
+                                color="secondary"
+                                onClick={()=> onPreviewMoveInline(m.uci, game.fen(), index, setPreview)}
+                              >
+                                <PreviewRoundedIcon fontSize='small' />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Add to Training">
+                              <IconButton
+                                size="small"
+                                onClick={()=> onAddToTraining(game.fen(), [m.uci], setTrainingQueueSize)}
+                              >
+                                <AddTaskRoundedIcon fontSize='small' />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </Paper>
+                      ))}
                     </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                      <Typography variant="caption" sx={{ width: 40, textAlign: 'right' }}>{Math.min(preview.idx||0, (preview.line?.length||0))}/{preview.line?.length||0}</Typography>
-                      <Slider size="small" min={0} max={(preview.line?.length||0)} value={Math.min(preview.idx||0, (preview.line?.length||0))} onChange={(_,v)=> previewSeekTo(preview, Number(v), setPreview, resetPreviewBoard, addMovesToPreview)} sx={{ flex: 1 }} />
+                  ) : (
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 3,
+                        textAlign: 'center',
+                        bgcolor: 'background.default'
+                , backgroundImage: 'none' ,
+                        borderRadius: 2
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        No data for this position. Try switching dataset or using a different FEN.
+                      </Typography>
+                    </Paper>
+                  )}
                     </Stack>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily:'monospace' }}>{(preview.line||[]).join(' ') || '—'}</Typography>
+                </Paper>
+
+                {/* MINI BOOK SECTION */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      Mini Book
+                    </Typography>
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 1.5,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1
+                      }}
+                    >
+                      <MiniBook
+                        indexMap={index || new Map()}
+                        rootFen={game.fen()}
+                        depth={2}
+                        topN={3}
+                        onMove={(uci)=> onPlayMove(uci, game.fen(), playMove)}
+                      />
+                    </Paper>
+                  </Stack>
+                </Paper>
+
+                {/* MODEL GAMES SECTION */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  <ModelGames indexMap={index || new Map()} rootFen={game.fen()} />
+                </Paper>
+
+                {/* PREVIEW SECTION */}
+                {preview.active && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'background.default',
+                      border: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        Preview Mode
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={()=> previewClose(setPreview, previewTimerRef)}
+                      >
+                        <CloseRoundedIcon fontSize='small' />
+                      </IconButton>
+                    </Stack>
+
+                    <Stack spacing={2}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Tooltip title="Previous">
+                          <IconButton
+                            size="small"
+                            onClick={()=> previewStep(preview, -1, setPreview, resetPreviewBoard, addMovesToPreview)}
+                          >
+                            <SkipPreviousRoundedIcon fontSize='small' />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={preview.playing ? 'Pause' : 'Play'}>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={()=> previewToggle(preview, setPreview, previewTimerRef, resetPreviewBoard, addMovesToPreview)}
+                          >
+                            {preview.playing ? <PauseRoundedIcon fontSize='small'/> : <PlayArrowRoundedIcon fontSize='small'/>}
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Next">
+                          <IconButton
+                            size="small"
+                            onClick={()=> previewStep(preview, 1, setPreview, resetPreviewBoard, addMovesToPreview)}
+                          >
+                            <SkipNextRoundedIcon fontSize='small' />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Replay from start">
+                          <IconButton
+                            size="small"
+                            onClick={()=> previewReplay(preview, resetPreviewBoard, addMovesToPreview, previewTimerRef)}
+                          >
+                            <RestartAltIcon fontSize='small' />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Apply to board (Enter)">
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={()=> previewApply(preview, addMoves, setPreview)}
+                            startIcon={<PlayArrowRoundedIcon fontSize='small' />}
+                          >
+                            Apply
+                          </Button>
+                        </Tooltip>
+                      </Stack>
+
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" sx={{ width: 50, textAlign: 'right' }}>
+                          {Math.min(preview.idx||0, (preview.line?.length||0))}/{preview.line?.length||0}
+                        </Typography>
+                        <Slider
+                          size="small"
+                          min={0}
+                          max={(preview.line?.length||0)}
+                          value={Math.min(preview.idx||0, (preview.line?.length||0))}
+                          onChange={(_,v)=> previewSeekTo(preview, Number(v), setPreview, resetPreviewBoard, addMovesToPreview)}
+                          sx={{ flex: 1 }}
+                        />
+                      </Stack>
+
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          bgcolor: 'background.paper',
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {(preview.line||[]).join(' ') || '—'}
+                      </Paper>
+                    </Stack>
                   </Paper>
                 )}
               </Stack>
-            </Box>
-          </Box>
+            </Paper>
+          </Stack>
         </Stack>
       </Paper>
 
-      {/* LANDING / SEO SECTION */}
-      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, width: '100%', maxWidth: 1200, mx: 'auto', mt: 3 }}>
-        <Stack spacing={2}>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Why This Position Explorer Matters for Chess Analysis</Typography>
-          <Typography color="text.secondary">
-            This page is built for chess analysis. It lets you explore real-game move choices from large open datasets and see which lines perform best. Compared with a pure engine, data‑driven chess analysis helps you understand what humans actually play online and over‑the‑board, and which practical options score well in real games.
-          </Typography>
+      {/* DOCUMENTATION & FAQ SECTION */}
+      <Box
+        sx={{
+          mt: 4,
+          p: { xs: 0, md: 1 },
+          bgcolor: 'background.default'
+                , backgroundImage: 'none' ,
+          borderRadius: 2
+        }}
+      >
+        <Stack spacing={4}>
+          {/* HERO INTRODUCTION */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: { xs: 2, md: 3 },
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography
+              component="h2"
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                mb: 2,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Why This Position Explorer Matters for Chess Analysis
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.8 }}>
+              This page is built for chess analysis. It lets you explore real-game move choices from large open datasets and see which lines perform best. Compared with a pure engine, data‑driven chess analysis helps you understand what humans actually play online and over‑the‑board, and which practical options score well in real games.
+            </Typography>
+          </Paper>
 
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Highlights</Typography>
-              <ul style={{ margin: '8px 0 0 18px' }}>
-                <li>Top moves with games and win rates to power your chess analysis decisions.</li>
-                <li>Mini book tree to preview lines quickly (no engine required).</li>
-                <li>Model games you can open in the Analyzer for deeper chess analysis with Stockfish.</li>
-                <li>Practice queue to convert findings into drills in one click.</li>
-              </ul>
+          {/* FEATURE GRID */}
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
+            <Paper
+              elevation={1}
+              sx={{
+                p: 3,
+                flex: 1,
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    bgcolor: 'primary.100',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <SortRoundedIcon color="primary" />
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Key Features
+                </Typography>
+              </Box>
+              <Stack spacing={1.5}>
+                <Typography variant="body2">✓ Top moves with games and win rates to power your chess analysis decisions.</Typography>
+                <Typography variant="body2">✓ Mini book tree to preview lines quickly (no engine required).</Typography>
+                <Typography variant="body2">✓ Model games you can open in the Analyzer for deeper chess analysis with Stockfish.</Typography>
+                <Typography variant="body2">✓ Practice queue to convert findings into drills in one click.</Typography>
+              </Stack>
             </Paper>
-            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Who Is It For</Typography>
-              <ul style={{ margin: '8px 0 0 18px' }}>
-                <li>Players who want free chess analysis without sign‑in.</li>
-                <li>Opening learners who need a fast, data‑first view before engine analysis.</li>
-                <li>Coaches preparing model lines and practice tasks for students.</li>
-              </ul>
+
+            <Paper
+              elevation={1}
+              sx={{
+                p: 3,
+                flex: 1,
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    bgcolor: 'secondary.100',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <InfoOutlinedIcon color="secondary" />
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Who Is It For
+                </Typography>
+              </Box>
+              <Stack spacing={1.5}>
+                <Typography variant="body2">✓ Players who want free chess analysis without sign‑in.</Typography>
+                <Typography variant="body2">✓ Opening learners who need a fast, data‑first view before engine analysis.</Typography>
+                <Typography variant="body2">✓ Coaches preparing model lines and practice tasks for students.</Typography>
+              </Stack>
             </Paper>
           </Stack>
 
-          <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>How It Works</Typography>
-          <Typography color="text.secondary">
-            We aggregate real games into a lightweight index. When you paste a FEN above, the explorer locates the position and shows the most played continuations. You can preview a line, add it to practice, or open a model game in the full Analyzer. For engine‑powered chess analysis, head to <Button component={Link} href="/analyze" size="small">/analyze</Button> where Stockfish provides multi‑PV evaluations.
-          </Typography>
+          {/* HOW IT WORKS */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography component="h3" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
+              How It Works
+            </Typography>
+            <Typography color="text.secondary" sx={{ lineHeight: 1.8 }}>
+              We aggregate real games into a lightweight index. When you paste a FEN above, the explorer locates the position and shows the most played continuations. You can preview a line, add it to practice, or open a model game in the full Analyzer. For engine‑powered chess analysis, head to{' '}
+              <Button component={Link} href="/analyze" size="small" sx={{ verticalAlign: 'baseline' }}>
+                /analyze
+              </Button>{' '}
+              where Stockfish provides multi‑PV evaluations.
+            </Typography>
+          </Paper>
 
-          <Divider />
+          {/* QUICK START GUIDE */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography component="h3" variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+              Quick Start Guide
+            </Typography>
+            <Stack spacing={2.5}>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  1
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Paste a FEN position
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Paste a FEN above (or click an example) and press Apply to analyze any chess position.
+                  </Typography>
+                </Box>
+              </Stack>
 
-          <Stack spacing={2}>
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Quick Start</Typography>
-            <ol style={{ margin: 0, paddingLeft: 18 }}>
-              <li>Paste a FEN above (or click an example) and press Apply.</li>
-              <li>Scan Top Moves: higher games = more popular; higher win% = better results.</li>
-              <li>Preview a move to see how the line unfolds; use ▶/⏭ to step through.</li>
-              <li>Open a model game in the Analyzer for engine‑based chess analysis, or Add to Practice.</li>
-            </ol>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  2
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Review top moves
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Scan Top Moves: higher games = more popular; higher win% = better results.
+                  </Typography>
+                </Box>
+              </Stack>
 
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>How To Read The Stats</Typography>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              <li><b>Games</b>: sample size for that move from real games (higher = more reliable).</li>
-              <li><b>Win%</b>: expected result for the side to move in this position (computed from results).</li>
-              <li><b>Mini Book</b>: a compact tree to sense the next 1–2 moves and typical plans.</li>
-            </ul>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  3
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Preview the line
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Preview a move to see how the line unfolds; use the playback controls to step through.
+                  </Typography>
+                </Box>
+              </Stack>
 
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>From Data To Engine</Typography>
-            <Typography color="text.secondary">Use Position Explorer to shortlist practical options by popularity and results. Then switch to the <Button component={Link} href="/analyze" size="small">Analyzer</Button> for Stockfish multi‑PV evaluation to validate tactics and refine your choice.</Typography>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  4
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Practice or analyze deeper
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Open a model game in the Analyzer for engine‑based chess analysis, or add to practice queue.
+                  </Typography>
+                </Box>
+              </Stack>
+            </Stack>
+          </Paper>
 
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Practice In 30 Seconds</Typography>
-            <ol style={{ margin: 0, paddingLeft: 18 }}>
-              <li>Click Practice Now (5) to auto‑create five drills from the current position.</li>
-              <li>Hit Start Practice to jump into retry mode and test yourself.</li>
-              <li>Repeat for your favorite openings until the moves feel automatic.</li>
-            </ol>
+          {/* STATS GUIDE */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography component="h3" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
+              How To Read The Statistics
+            </Typography>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  📊 Games
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Sample size for that move from real games (higher = more reliable).
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  🎯 Win%
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Expected result for the side to move in this position (computed from results).
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  🌳 Mini Book
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  A compact tree to sense the next 1–2 moves and typical plans.
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
 
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Coverage & Limits</Typography>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              <li>Data comes from real games. Small samples can be noisy—prefer higher game counts.</li>
-              <li>When a specific FEN is missing, we fall back to FEN‑2 or a recent ancestor and label it.</li>
-              <li>Use engine analysis for sharp tactics or when results disagree across sources.</li>
-            </ul>
+          {/* PRACTICE SECTION */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography component="h3" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
+              Practice In 30 Seconds
+            </Typography>
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'secondary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  1
+                </Box>
+                <Typography variant="body2">
+                  Click <b>Practice Now (5)</b> to auto‑create five drills from the current position
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'secondary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  2
+                </Box>
+                <Typography variant="body2">
+                  Hit <b>Start Practice</b> to jump into retry mode and test yourself
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Box
+                  sx={{
+                    minWidth: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: 'secondary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700
+                  }}
+                >
+                  3
+                </Box>
+                <Typography variant="body2">
+                  Repeat for your favorite openings until the moves feel automatic
+                </Typography>
+              </Stack>
+            </Stack>
+          </Paper>
 
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: .5 }}>Why players like this tool</Typography>
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                <li>Data‑first chess analysis: see what people actually play and what succeeds.</li>
-                <li>Fast previews and a clean opening tree for immediate understanding.</li>
-                <li>One‑click flow to engine analysis and practice—no accounts, free to use.</li>
-              </ul>
-            </Paper>
-          </Stack>
+          {/* COVERAGE & LIMITS */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography component="h3" variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
+              Coverage & Limitations
+            </Typography>
+            <Stack spacing={1.5}>
+              <Typography variant="body2">⚠️ Data comes from real games. Small samples can be noisy—prefer higher game counts.</Typography>
+              <Typography variant="body2">⚠️ When a specific FEN is missing, we fall back to FEN‑2 or a recent ancestor and label it.</Typography>
+              <Typography variant="body2">⚠️ Use engine analysis for sharp tactics or when results disagree across sources.</Typography>
+            </Stack>
+          </Paper>
 
-          <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>FAQ</Typography>
-          <Accordion disableGutters>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Is this a chess analysis engine or a database?</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography color="text.secondary">It is a data‑driven explorer. For engine chess analysis, open a position here and then use our Analyzer page with Stockfish. Together they create a complete chess analysis workflow.</Typography>
-            </AccordionDetails>
-          </Accordion>
-          <Accordion disableGutters>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Is it free to use?</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography color="text.secondary">Yes. The position explorer and the Analyzer provide free chess analysis features. No sign‑in is required.</Typography>
-            </AccordionDetails>
-          </Accordion>
-          <Accordion disableGutters>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>How does this compare to lichess analysis or chess.com analysis?</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography color="text.secondary">We focus on a quick, practical view of what players choose in real games. Use this explorer to see popular and successful moves, then use the Analyzer for deep engine‑based chess analysis. It complements lichess analysis and chess.com analysis by giving you a data‑first starting point.</Typography>
-            </AccordionDetails>
-          </Accordion>
-          <Accordion disableGutters>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Can I practice the lines I find?</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography color="text.secondary">Yes. Add top moves to your practice queue and start training in one click. It turns chess analysis into spaced practice.</Typography>
-            </AccordionDetails>
-          </Accordion>
+          {/* WHY PLAYERS LIKE IT */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white'
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              Why players love this tool
+            </Typography>
+            <Stack spacing={1.5}>
+              <Typography variant="body2" sx={{ color: 'white' }}>✓ Data‑first chess analysis: see what people actually play and what succeeds.</Typography>
+              <Typography variant="body2" sx={{ color: 'white' }}>✓ Fast previews and a clean opening tree for immediate understanding.</Typography>
+              <Typography variant="body2" sx={{ color: 'white' }}>✓ One‑click flow to engine analysis and practice—no accounts, free to use.</Typography>
+            </Stack>
+          </Paper>
 
-          <Stack direction="row" spacing={1}>
-            <Button component={Link} href="/analyze" variant="contained">Open Analyzer</Button>
-            <Button component={Link} href="#" onClick={(e:any)=>{ e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Back to Top</Button>
-          </Stack>
+          {/* FAQ SECTION */}
+          <Paper
+            elevation={1}
+            sx={{
+              p: { xs: 2, md: 3 },
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Typography component="h3" variant="h4" sx={{ fontWeight: 700, mb: 3 }}>
+              Frequently Asked Questions
+            </Typography>
+            <Stack spacing={1.5}>
+              <Accordion elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    Is this a chess analysis engine or a database?
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography color="text.secondary">
+                    It is a data‑driven explorer. For engine chess analysis, open a position here and then use our Analyzer page with Stockfish. Together they create a complete chess analysis workflow.
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
 
-          
+              <Accordion elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography sx={{ fontWeight: 600 }}>Is it free to use?</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography color="text.secondary">
+                    Yes. The position explorer and the Analyzer provide free chess analysis features. No sign‑in is required.
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+
+              <Accordion elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography sx={{ fontWeight: 600 }}>
+                    How does this compare to lichess analysis or chess.com analysis?
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography color="text.secondary">
+                    We focus on a quick, practical view of what players choose in real games. Use this explorer to see popular and successful moves, then use the Analyzer for deep engine‑based chess analysis. It complements lichess analysis and chess.com analysis by giving you a data‑first starting point.
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+
+              <Accordion elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography sx={{ fontWeight: 600 }}>Can I practice the lines I find?</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography color="text.secondary">
+                    Yes. Add top moves to your practice queue and start training in one click. It turns chess analysis into spaced practice.
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+            </Stack>
+          </Paper>
         </Stack>
-      </Paper>
+
+        {/* ACTION BUTTONS */}
+        <Paper
+          elevation={1}
+          sx={{
+            p: { xs: 2, md: 3 },
+            borderRadius: 2,
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+          >
+            <Button
+              component={Link}
+              href="/analyze"
+              variant="contained"
+              size="large"
+              startIcon={<PlayArrowRoundedIcon />}
+              sx={{ flex: 1 }}
+            >
+              Open Chess Analyzer
+            </Button>
+            <Button
+              component={Button}
+              onClick={(e:any)=>{ e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              variant="outlined"
+              size="large"
+              startIcon={<RestartAltIcon />}
+              sx={{ flex: 1 }}
+            >
+              Back to Top
+            </Button>
+          </Stack>
+        </Paper>
+      </Box>
     </Box>
   );
 }
