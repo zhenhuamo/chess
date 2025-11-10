@@ -31,7 +31,10 @@ export interface Props {
   showEvaluationBar?: boolean;
 }
 
-export default function Board({ id: boardId, canPlay, gameAtom, boardSize, whitePlayer, blackPlayer, boardOrientation = Color.White, currentPositionAtom = atom({}), showBestMoveArrow = false, showPlayerMoveIconAtom, showEvaluationBar = false, }: Props) {
+// Use a stable default atom to avoid creating a new atom() on every render (which can trigger re‑subscriptions/loops)
+const DEFAULT_CURRENT_POSITION_ATOM: PrimitiveAtom<CurrentPosition> = atom({} as any);
+
+export default function Board({ id: boardId, canPlay, gameAtom, boardSize, whitePlayer, blackPlayer, boardOrientation = Color.White, currentPositionAtom = DEFAULT_CURRENT_POSITION_ATOM, showBestMoveArrow = false, showPlayerMoveIconAtom, showEvaluationBar = false, }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
   const game = useAtomValue(gameAtom);
   console.log('[Board] game updated, history length=', game.history().length, 'FEN=', game.fen()?.substring(0, 20));

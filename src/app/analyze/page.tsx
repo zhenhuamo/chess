@@ -11,6 +11,7 @@ import AnalysisTab from "@/src/sections/analysis/panelBody/analysisTab";
 import EngineLines from "@/src/sections/analysis/panelBody/analysisTab/engineLines";
 import OpeningsPanel from "@/src/sections/analysis/panelBody/openingsPanel";
 import GraphTab from "@/src/sections/analysis/panelBody/graphTab";
+import Link from "next/link";
 import MovesTab from "@/src/sections/analysis/panelBody/movesTab";
 import GameLoader from "@/src/sections/analysis/gameLoader";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -201,6 +202,12 @@ function GameAnalysisInner() {
               </Box>
               <Box sx={{ flex: 1, overflow: 'auto' }}>
                 <GraphTab role="tabpanel" hidden={tab !== 2} id="tabContent2" />
+                {/* Quick link to Explore current position */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                  <Link prefetch={false} href={`/explore?fen=${encodeURIComponent(board.fen())}`}>
+                    <Button size="small" variant="outlined">Explore this position</Button>
+                  </Link>
+                </Box>
                 <AnalysisTab role="tabpanel" hidden={tab !== 0} id="tabContent0" />
                 <MovesTab role="tabpanel" hidden={tab !== 1} id="tabContent1" />
               </Box>

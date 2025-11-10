@@ -7,6 +7,7 @@ import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import InsightsIcon from '@mui/icons-material/Insights';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import StorageIcon from '@mui/icons-material/Storage';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
@@ -87,6 +88,7 @@ export default function SideNav({ collapsed, onToggle }: Props) {
       <List dense sx={{ py: 0.5 }}>
         <Item href="/" icon={<HomeIcon />} label="Home" />
         <Item href="/analyze" icon={<InsightsIcon />} label="Analyze" />
+        <Item href="/explore" icon={<TravelExploreIcon />} label="Explore" />
         <Item href="/play" icon={<SportsEsportsIcon />} label="Play" />
         <Item href="/records" icon={<StorageIcon />} label="Records" />
         <Item href="/updates" icon={<HistoryIcon />} label="Updates" />

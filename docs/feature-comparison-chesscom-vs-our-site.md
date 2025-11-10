@@ -51,7 +51,7 @@
 最后更新：2025-11-01
 文件维护者：内部文档（可在 PR 中直接更新此清单）
 
-## 6) 用户需求导向的优化路线（草案）
+## 6) 用户需求导向的优化路线（草案）现在我
 
 - 分享/嵌入闭环（优先级：高｜工作量：S–M）
   - [已完成] 分享弹窗改为 Popover + Snackbar，提供“复制链接/PGN/Embed”，并支持移动端 System Share（Web Share）；路径：`src/sections/analysis/panelToolbar/shareButton.tsx`。
