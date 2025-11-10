@@ -1,10 +1,18 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography } from "@mui/material";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert } from "@mui/material";
 import { Chess } from "chess.js";
-import { atom, useAtom, useSetAtom } from "jotai";
+import { atom, useAtom } from "jotai";
 import Board from "@/src/components/board";
 import { Color } from "@/src/types/enums";
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
+import PreviewRoundedIcon from '@mui/icons-material/PreviewRounded';
+import AddTaskRoundedIcon from '@mui/icons-material/AddTaskRounded';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import SortRoundedIcon from '@mui/icons-material/SortRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import { useChessActions } from "@/src/hooks/useChessActions";
+import MiniBook from "./components/MiniBook";
 
 type Fen4 = string;
 type MoveStat = { games: number; wrWhite?: number; wrBlack?: number };
@@ -21,6 +29,14 @@ export default function ExplorePage() {
   const [index, setIndex] = useState<Map<Fen4, Node> | null>(null);
   const [fileKey, setFileKey] = useState<string>('lichess-4000.pgn');
   const [fromCache, setFromCache] = useState<string | null>(null);
+  const [indexSource, setIndexSource] = useState<'prebuilt'|'stream'|'cache'|null>(null);
+  const [manifestMeta, setManifestMeta] = useState<any>(null);
+
+  // UI states
+  const [sortKey, setSortKey] = useState<'hot'|'win'>('hot');
+  const [preview, setPreview] = useState<{ active: boolean; baseFen?: string; line?: string[] }>({ active: false });
+  const [fallbackInfo, setFallbackInfo] = useState<{ type: 'fen4'|'fen2'|'ancestor'|'none'; depth?: number }>({ type: 'none' });
+  const [trainingQueueSize, setTrainingQueueSize] = useState<number>(() => getTrainingQueue().length);
 
   // Resolve stream endpoint once (env or default). Keep outside of dependencies to avoid re-decl errors.
   const STREAM_ENDPOINT = useMemo(() => (process.env.NEXT_PUBLIC_EXPLORE_STREAM_ENDPOINT || '/api/explore/stream'), []);
@@ -57,7 +73,7 @@ export default function ExplorePage() {
       const idxJson = await ir.json().catch(()=>null) as any;
       if (!idxJson) return null;
       const map = normalizeIndexJsonToMap(idxJson);
-      return { map, version };
+      return { map, version, manifest } as any;
     } catch { return null; }
   }, [MANIFEST_ENDPOINT, INDEX_ENDPOINT]);
 
@@ -106,12 +122,12 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
       const ver = versionTag();
       if (!force) {
         const cached = await loadCache(ver);
-        if (cached) { setIndex(cached); setFromCache(ver); setProgress('Loaded from cache'); return; }
+        if (cached) { setIndex(cached); setFromCache(ver); setIndexSource('cache'); setProgress('Loaded from cache'); return; }
       }
       // Fast-path: prebuilt index from R2 (if available)
       const prebuilt = await tryLoadPrebuiltIndex();
       if (prebuilt?.map && prebuilt.map.size>0) {
-        setIndex(prebuilt.map); setFromCache(prebuilt.version || 'prebuilt'); setProgress('Loaded prebuilt index'); return;
+        setIndex(prebuilt.map); setFromCache(prebuilt.version || 'prebuilt'); setIndexSource('prebuilt'); setManifestMeta(prebuilt.manifest || null); setProgress('Loaded prebuilt index'); return;
       }
 
       // Try worker mode
@@ -127,7 +143,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
           worker.onerror = (ev) => { reject(new Error(String((ev as any).message || 'worker_error'))); try { worker.terminate(); } catch {} };
           worker.postMessage({ type: 'build', endpoint: STREAM_ENDPOINT, file: fileKey, maxPlies: 16 });
         });
-        setIndex(result); try { (globalThis as any).__EXPLORE_INDEX_MAP = result; } catch {}
+        setIndex(result); setIndexSource('stream'); try { (globalThis as any).__EXPLORE_INDEX_MAP = result; } catch {}
         try { await saveCache(ver, result); } catch {}
         setProgress('Done.');
       } catch (werr) {
@@ -138,7 +154,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
         const text = await r.text();
         const games = splitPgn(text);
         const map = await inlineBuild(games, (d, t) => setProgress(`Indexed ${d}/${t} games…`));
-        setIndex(map); try { (globalThis as any).__EXPLORE_INDEX_MAP = map; } catch {}
+        setIndex(map); setIndexSource('stream'); try { (globalThis as any).__EXPLORE_INDEX_MAP = map; } catch {}
         try { await saveCache(ver, map); } catch {}
         setProgress('Done.');
       }
@@ -157,31 +173,55 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
     try { const d = new Chess(fen); setGame(d); } catch { /* ignore */ }
   }, [fen, setGame]);
 
+  const { playMove } = useChessActions(localGameAtom);
+
+  const nodeAtFenWithFallback = useCallback((fenStr: string): { node: Node | null; fallback: { type: 'fen4'|'fen2'|'ancestor'|'none'; depth?: number } } => {
+    if (!index) return { node: null, fallback: { type: 'none' } };
+    const f4 = fen4(fenStr);
+    const nodeDirect = index.get(f4);
+    if (nodeDirect) return { node: nodeDirect, fallback: { type: 'fen4', depth: 0 } };
+    const f2 = fen2(fenStr);
+    const agg: Node = { total: 0, moves: {} };
+    index.forEach((n, k) => {
+      if (k.startsWith(f2)) {
+        agg.total += n.total;
+        for (const [uci, ms] of Object.entries(n.moves)) {
+          const cur: any = agg.moves[uci] || { games: 0 };
+          cur.games += (ms.games || 0);
+          if (typeof ms.wrWhite === 'number') {
+            const cnt = (cur.wrWhite_n || 0) + 1; const prev = (cur.wrWhite || 0) * (cnt - 1); cur.wrWhite = (prev + ms.wrWhite) / cnt; cur.wrWhite_n = cnt;
+          }
+          if (typeof ms.wrBlack === 'number') {
+            const cnt = (cur.wrBlack_n || 0) + 1; const prev = (cur.wrBlack || 0) * (cnt - 1); cur.wrBlack = (prev + ms.wrBlack) / cnt; cur.wrBlack_n = cnt;
+          }
+          agg.moves[uci] = cur;
+        }
+      }
+    });
+    if (agg.total > 0) return { node: agg, fallback: { type: 'fen2', depth: 0 } };
+    // Ancestor fallback if we have PGN history
+    try {
+      const g = new Chess();
+      g.loadPgn(game.pgn());
+      let depth = 0;
+      for (let i = 0; i < 4; i++) {
+        const m = g.undo(); if (!m) break; depth++;
+        const backFen = g.fen();
+        const n = index.get(fen4(backFen));
+        if (n) return { node: n, fallback: { type: 'ancestor', depth } };
+        const f2a = fen2(backFen);
+        const agga: Node = { total: 0, moves: {} };
+        index.forEach((n2, k2) => { if (k2.startsWith(f2a)) { agga.total += n2.total; for (const [uci, ms] of Object.entries(n2.moves)) { const cur: any = (agga.moves[uci] || { games: 0 }); cur.games += (ms.games || 0); agga.moves[uci] = cur; } } });
+        if (agga.total > 0) return { node: agga, fallback: { type: 'ancestor', depth } };
+      }
+    } catch {}
+    return { node: null, fallback: { type: 'none' } };
+  }, [index, game]);
+
   const topMoves = useMemo(() => {
     if (!index) return [] as Array<{ uci: string; games: number; win?: number; san: string }>;
-    const f4 = fen4(game.fen());
-    let node = index.get(f4);
-    if (!node) {
-      const f2 = fen2(game.fen());
-      const agg: Node = { total: 0, moves: {} };
-      index.forEach((n, k) => {
-        if (k.startsWith(f2)) {
-          agg.total += n.total;
-          for (const [uci, ms] of Object.entries(n.moves)) {
-            const cur = agg.moves[uci] || { games: 0 };
-            cur.games += ms.games;
-            if (typeof ms.wrWhite === 'number') {
-              const cnt = (cur as any).wrWhite_n || 0; const prev = (cur.wrWhite || 0) * cnt; const nextCnt = cnt + 1; (cur as any).wrWhite_n = nextCnt; cur.wrWhite = (prev + ms.wrWhite) / nextCnt;
-            }
-            if (typeof ms.wrBlack === 'number') {
-              const cnt = (cur as any).wrBlack_n || 0; const prev = (cur.wrBlack || 0) * cnt; const nextCnt = cnt + 1; (cur as any).wrBlack_n = nextCnt; cur.wrBlack = (prev + ms.wrBlack) / nextCnt;
-            }
-            agg.moves[uci] = cur;
-          }
-        }
-      });
-      node = agg.total > 0 ? agg : undefined as any;
-    }
+    const { node, fallback } = nodeAtFenWithFallback(game.fen());
+    setFallbackInfo(fallback);
     if (!node) return [];
     const side = game.turn();
     const entries = Object.entries(node.moves).map(([uci, ms]) => {
@@ -189,8 +229,11 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
       const san = uciToSan(game.fen(), uci);
       return { uci, games: ms.games, win, san };
     });
+    if (sortKey === 'win') {
+      return entries.sort((a,b)=> ((b.win||-1)-(a.win||-1)) || (b.games - a.games)).slice(0,5);
+    }
     return entries.sort((a,b)=> (b.games - a.games) || ((b.win||0)-(a.win||0))).slice(0,5);
-  }, [index, game]);
+  }, [index, game, sortKey, nodeAtFenWithFallback]);
 
   // Stable player objects (avoid re-creating each render to prevent Board effects from looping)
   const whitePlayer = useMemo(() => ({ name: 'White' }), []);
@@ -200,13 +243,23 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
     <Box sx={{ p: { xs: 1, md: 2 }, display: 'flex', justifyContent: 'center' }}>
       <Paper variant="outlined" sx={{ p: { xs: 1, md: 2 }, width: '100%', maxWidth: 1200 }}>
         <Stack spacing={1}>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Position Explorer (MVP)</Typography>
-          <Typography variant="body2" color="text.secondary">Data from R2 via /api/explore/stream · file: {fileKey}</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>Position Explorer</Typography>
+          {/* Landing intro */}
+          <Stack spacing={0.5}>
+            <Typography variant="body2" color="text.secondary">研究任意位置的下一步：热门分支、胜率、简易书树与范例局；可将分支加入练习。</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+              <Chip size="small" label={`Source: ${indexSource ?? '—'}`} variant="outlined" />
+              {!!fromCache && <Chip size="small" label={`Index: ${fromCache}`} variant="outlined" />}
+              {manifestMeta?.date && <Chip size="small" label={`Updated: ${manifestMeta?.date}`} variant="outlined" />}
+              <Chip size="small" label={`Nodes: ${index?.size ?? 0}`} variant="outlined" />
+              <Chip size="small" label={`Training: ${trainingQueueSize}`} variant="outlined" />
+            </Stack>
+          </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField size="small" label="FEN" fullWidth value={fen} onChange={(e)=> setFen(e.target.value)} />
             <Button variant="outlined" onClick={onApplyFen}>应用 FEN</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-4000.pgn')}>4000</Button>
-            <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(Aug)</Button>
+            <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(AUG)</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
             <Button size="small" variant="outlined" onClick={()=> buildIndex(true)}>Rebuild</Button>
           </Stack>
@@ -214,15 +267,22 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
           {loading && (
             <Box sx={{ display:'flex', alignItems:'center', gap:1 }}><CircularProgress size={18} /> <Typography variant="body2">{progress}</Typography></Box>
           )}
-          {fromCache && (<Typography variant="caption" color="text.secondary">Loaded from cache · {fromCache}</Typography>)}
-          {err && (<Typography color="error">{err}</Typography>)}
+          {err && (<Alert severity="error" variant="outlined">{err}</Alert>)}
+          {fromCache && (<Typography variant="caption" color="text.secondary">Loaded · {indexSource} · {fromCache}</Typography>)}
+          {(fallbackInfo.type !== 'fen4') && (
+            <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ py: 0.5 }}>
+              {fallbackInfo.type === 'fen2' && '当前 FEN4 暂无数据，已回退到 fen2 聚合。'}
+              {fallbackInfo.type === 'ancestor' && `已回退至 ${fallbackInfo.depth} plies 前的最近有数据位置。`}
+              {fallbackInfo.type === 'none' && '未命中数据。请回退半步或从示例起点 e4/d4/c4/Nf3 开始。'}
+            </Alert>
+          )}
 
           <Divider />
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Box sx={{ flex: '0 0 420px' }}>
               <Board
                 id="explore"
-                canPlay={false}
+                canPlay={true}
                 gameAtom={localGameAtom}
                 boardOrientation={Color.White}
                 whitePlayer={whitePlayer}
@@ -231,21 +291,42 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
               />
             </Box>
             <Box sx={{ flex: '1 1 360px', minWidth: 320 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>Top Moves</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                <Typography variant="subtitle2">Top Moves</Typography>
+                <ToggleButtonGroup size="small" value={sortKey} exclusive onChange={(_,v)=> v && setSortKey(v)}>
+                  <ToggleButton value="hot"><SortRoundedIcon sx={{ fontSize: 16, mr: 0.5 }} />Hot</ToggleButton>
+                  <ToggleButton value="win">Win%</ToggleButton>
+                </ToggleButtonGroup>
+              </Stack>
               <Stack spacing={0.5}>
                 {topMoves.map((m,i)=> (
-                  <Paper key={i} variant="outlined" sx={{ p: 1, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                    <Typography variant="body2" sx={{ fontFamily:'monospace' }}>{m.san || m.uci}</Typography>
-                    <Typography variant="caption" color="text.secondary">{m.games} · {typeof m.win==='number'? `${Math.round(m.win*100)}%`:'—'}</Typography>
+                  <Paper key={i} variant="outlined" sx={{ p: 1, display:'flex', alignItems:'center', justifyContent:'space-between', gap: 1 }}>
+                    <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                      <Typography variant="body2" sx={{ fontFamily:'monospace' }}>{m.san || m.uci}</Typography>
+                      <Typography variant="caption" color="text.secondary">{m.games} · {typeof m.win==='number'? `${Math.round(m.win*100)}%`:'—'}</Typography>
+                    </Box>
+                    <Box sx={{ display:'flex', alignItems:'center', gap:0.5 }}>
+                      <Tooltip title="Play"><span><IconButton size="small" onClick={()=> onPlayMove(m.uci, game.fen(), playMove)}><PlayArrowRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                      <Tooltip title="Preview 10 plies"><span><IconButton size="small" onClick={()=> onPreviewMoveInline(m.uci, game.fen(), index, setPreview)}><PreviewRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                      <Tooltip title="Add to Training"><span><IconButton size="small" onClick={()=> onAddToTraining(game.fen(), [m.uci], setTrainingQueueSize)}><AddTaskRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                    </Box>
                   </Paper>
                 ))}
                 {(!topMoves.length) && <Typography variant="body2" color="text.secondary">当前位置暂无数据，尝试减少深度或切换文件。</Typography>}
-              
-              <Typography variant="subtitle2" sx={{ mt: 2 }}>Mini Book</Typography>
-              <Stack spacing={0.25}>
-                {renderMiniBook(game.fen(), 2)}
+
+                <Typography variant="subtitle2" sx={{ mt: 2 }}>Mini Book</Typography>
+                <MiniBook indexMap={index || new Map()} rootFen={game.fen()} depth={2} topN={3} onMove={(uci)=> onPlayMove(uci, game.fen(), playMove)} />
+
+                {preview.active && (
+                  <Paper variant="outlined" sx={{ mt: 2, p: 1 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                      <Typography variant="subtitle2">Preview</Typography>
+                      <IconButton size="small" onClick={()=> setPreview({ active: false })}><CloseRoundedIcon fontSize='small' /></IconButton>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily:'monospace' }}>{(preview.line||[]).join(' ') || '—'}</Typography>
+                  </Paper>
+                )}
               </Stack>
-</Stack>
             </Box>
           </Box>
         </Stack>
@@ -339,36 +420,55 @@ async function inlineBuild(games: string[], onProgress?: (done: number, total: n
   return map;
 }
 
-function renderMiniBook(rootFen: string, depth: number): any {
+// Row helpers
+function onPlayMove(uci: string, fen: string, playMove: (args: any)=> any) {
   try {
+    const d = new Chess(fen);
+    const from = uci.slice(0,2), to = uci.slice(2,4); const promotion = uci.slice(4) || undefined;
+    const legal = d.move({ from, to, promotion });
+    if (!legal) return;
+    playMove({ from, to, promotion });
+    console.log('[explore] play_click', { uci, fen4: fen4(fen) });
+  } catch {}
+}
+
+function onAddToTraining(fen: string, acceptedUci: string[], setSize: (n:number)=>void) {
+  const q = getTrainingQueue();
+  q.push({ fen, acceptedUci, createdAt: Date.now() });
+  try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
+  setSize(q.length);
+  console.log('[explore] add_to_training', { fen4: fen4(fen), acceptedUci });
+}
+
+function getTrainingQueue(): Array<{ fen: string; acceptedUci: string[]; createdAt: number }> {
+  try { const raw = localStorage.getItem('explore:trainingQueue'); if (raw) return JSON.parse(raw) || []; } catch {}
+  return [];
+}
+
+// Build a quick preview line of up to 10 plies by greedily picking the top move at each node
+function onPreviewMoveInline(startUci: string, rootFen: string, index: Map<string, Node> | null, setPreview: (p: any)=> void) {
+  if (!index) return;
+  try {
+    const lineSAN: string[] = [];
     const d = new Chess(rootFen);
-    const f4 = fen4(d.fen());
-    // Use existing index loaded in component via closure (hack: not accessible here), so fallback: no tree when not in scope.
-    // In this simple MVP, recompute topMoves for this fen using window.__EXPLORE_INDEX if present.
-    const anyWin: any = (globalThis as any);
-    const index: Map<string, Node> | undefined = anyWin.__EXPLORE_INDEX_MAP;
-    if (!index) return null;
-    const node = index.get(f4);
-    if (!node) return null;
-    const side = d.turn();
-    const entries = Object.entries(node.moves).map(([uci, ms]) => {
-      const win = side==='w'? ms.wrWhite : ms.wrBlack;
-      const san = uciToSan(d.fen(), uci);
-      return { uci, games: ms.games, win, san };
-    }).sort((a,b)=> (b.games-a.games)||((b.win||0)-(a.win||0))).slice(0,3);
-    return entries.map((m:any, i:number) => {
-      let child: any = null;
-      if (depth>0) {
-        const c = new Chess(rootFen);
-        try { c.move({ from: m.uci.slice(0,2), to: m.uci.slice(2,4), promotion: m.uci.slice(4) || undefined }); child = renderMiniBook(c.fen(), depth-1); } catch {}
-      }
-      return (
-        <Box key={`${f4}-${m.uci}-${i}`} sx={{ pl: (2-depth)*1.5 }}>
-          <Typography variant="caption" sx={{ fontFamily:'monospace' }}>{m.san || m.uci}</Typography>
-          <Typography variant="caption" color="text.secondary"> · {m.games} · {typeof m.win==='number'? `${Math.round(m.win*100)}%`:'—'}</Typography>
-          {child}
-        </Box>
-      );
-    });
-  } catch { return null; }
+    // first move
+    const mv = { from: startUci.slice(0,2), to: startUci.slice(2,4), promotion: startUci.slice(4) || undefined } as any;
+    const res = d.move(mv);
+    if (!res) return;
+    lineSAN.push(res.san || startUci);
+    for (let i = 1; i < 10; i++) {
+      const f4 = (d.fen().split(' ').slice(0,4).join(' '));
+      const node = index.get(f4);
+      if (!node || !node.moves) break;
+      const entries = Object.entries(node.moves).map(([uci, ms]) => ({ uci, games: ms.games || 0 }));
+      if (!entries.length) break;
+      entries.sort((a,b)=> b.games - a.games);
+      const u = entries[0].uci;
+      const r = d.move({ from: u.slice(0,2), to: u.slice(2,4), promotion: u.slice(4) || undefined } as any);
+      if (!r) break;
+      lineSAN.push(r.san || u);
+    }
+    setPreview({ active: true, baseFen: rootFen, line: lineSAN });
+    console.log('[explore] preview_click', { startUci, len: lineSAN.length });
+  } catch {}
 }
