@@ -498,21 +498,45 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
 
           <Divider />
 
-          <Stack spacing={1}>
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Common Searches</Typography>
-            <Typography color="text.secondary">
-              Many players look for chess analysis tools that are fast and free. This page complements full engines with a data view: lichess analysis style databases, a free chess analysis board for openings, and quick links to our engine chess analysis in the Analyzer. If you came for lichess analysis board alternatives or chess.com analysis ideas, this explorer shows what people actually play before you run deep engine analysis. It is a practical bridge between a chess game analysis database and a chess engine analysis session.
-            </Typography>
-            <Typography color="text.secondary">
-              Why users choose this page: it is a fast, data‑driven layer for chess analysis. You see what real players actually play, which moves win more often, and how lines flow a few moves ahead—before you spend time on deep engine evaluation. It is free, no sign‑in, privacy‑friendly, and integrated with our Analyzer and Practice so you can move from discovery to training in seconds.
-            </Typography>
+          <Stack spacing={2}>
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Quick Start</Typography>
+            <ol style={{ margin: 0, paddingLeft: 18 }}>
+              <li>Paste a FEN above (or click an example) and press Apply.</li>
+              <li>Scan Top Moves: higher games = more popular; higher win% = better results.</li>
+              <li>Preview a move to see how the line unfolds; use ▶/⏭ to step through.</li>
+              <li>Open a model game in the Analyzer for engine‑based chess analysis, or Add to Practice.</li>
+            </ol>
+
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>How To Read The Stats</Typography>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <li><b>Games</b>: sample size for that move from real games (higher = more reliable).</li>
+              <li><b>Win%</b>: expected result for the side to move in this position (computed from results).</li>
+              <li><b>Mini Book</b>: a compact tree to sense the next 1–2 moves and typical plans.</li>
+            </ul>
+
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>From Data To Engine</Typography>
+            <Typography color="text.secondary">Use Position Explorer to shortlist practical options by popularity and results. Then switch to the <Button component={Link} href="/analyze" size="small">Analyzer</Button> for Stockfish multi‑PV evaluation to validate tactics and refine your choice.</Typography>
+
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Practice In 30 Seconds</Typography>
+            <ol style={{ margin: 0, paddingLeft: 18 }}>
+              <li>Click Practice Now (5) to auto‑create five drills from the current position.</li>
+              <li>Hit Start Practice to jump into retry mode and test yourself.</li>
+              <li>Repeat for your favorite openings until the moves feel automatic.</li>
+            </ol>
+
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Coverage & Limits</Typography>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <li>Data comes from real games. Small samples can be noisy—prefer higher game counts.</li>
+              <li>When a specific FEN is missing, we fall back to FEN‑2 or a recent ancestor and label it.</li>
+              <li>Use engine analysis for sharp tactics or when results disagree across sources.</li>
+            </ul>
+
             <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: .5 }}>What makes this tool different</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: .5 }}>Why players like this tool</Typography>
               <ul style={{ margin: 0, paddingLeft: 18 }}>
-                <li>Data first: popular moves and win rates from real games, not just engine guesses.</li>
-                <li>Instant previews: mini book tree and one‑click line preview for quick understanding.</li>
-                <li>Seamless workflow: open model games in the Analyzer, or add lines to Practice.</li>
-                <li>Free and local: works without accounts; caching keeps it snappy on repeat visits.</li>
+                <li>Data‑first chess analysis: see what people actually play and what succeeds.</li>
+                <li>Fast previews and a clean opening tree for immediate understanding.</li>
+                <li>One‑click flow to engine analysis and practice—no accounts, free to use.</li>
               </ul>
             </Paper>
           </Stack>
