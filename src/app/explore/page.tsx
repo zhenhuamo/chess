@@ -22,7 +22,11 @@ export default function ExplorePage() {
   const [fileKey, setFileKey] = useState<string>('lichess-4000.pgn');
   const [fromCache, setFromCache] = useState<string | null>(null);
 
-  const STREAM_ENDPOINT = (process.env.NEXT_PUBLIC_EXPLORE_STREAM_ENDPOINT || '/api/explore/stream');
+  // Resolve stream endpoint once (env or default). Keep outside of dependencies to avoid re-decl errors.
+  const STREAM_ENDPOINT = useMemo(() => (process.env.NEXT_PUBLIC_EXPLORE_STREAM_ENDPOINT || '/api/explore/stream'), []);
+  const MANIFEST_ENDPOINT = useMemo(() => (process.env.NEXT_PUBLIC_EXPLORE_MANIFEST_ENDPOINT || '/api/explore/manifest'), []);
+  const INDEX_ENDPOINT = useMemo(() => (process.env.NEXT_PUBLIC_EXPLORE_INDEX_ENDPOINT || '/api/explore/index'), []);
+
   const versionTag = useCallback(() => `stream:${fileKey}:algo:v0:max16`, [fileKey]);
 
   const loadCache = useCallback(async (version: string) => {
@@ -36,7 +40,56 @@ export default function ExplorePage() {
     return null;
   }, []);
 
-  const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
+  
+  // Try fast-path: load prebuilt index from R2 via manifest/index endpoints
+  const tryLoadPrebuiltIndex = useCallback(async () => {
+    try {
+      setProgress('Loading index manifest…');
+      const mr = await fetch(MANIFEST_ENDPOINT, { cache: 'force-cache' });
+      if (!mr.ok) return null;
+      const manifest = await mr.json().catch(()=>null) as any;
+      const indexUrl = manifest?.index || manifest?.url;
+      const version = manifest?.version || manifest?.ver || 'v2';
+      if (!indexUrl) return null;
+      setProgress('Loading prebuilt index…');
+      const ir = await fetch(`${INDEX_ENDPOINT}?url=${encodeURIComponent(indexUrl)}`, { cache: 'force-cache' });
+      if (!ir.ok) return null;
+      const idxJson = await ir.json().catch(()=>null) as any;
+      if (!idxJson) return null;
+      const map = normalizeIndexJsonToMap(idxJson);
+      return { map, version };
+    } catch { return null; }
+  }, [MANIFEST_ENDPOINT, INDEX_ENDPOINT]);
+
+  function normalizeIndexJsonToMap(j: any): Map<Fen4, Node> {
+    // Accept several shapes: {entries:[[fen,node],...]}, {nodes:[{fen4,...}]}, or object map
+    const m = new Map<Fen4, Node>();
+    if (!j) return m;
+    if (Array.isArray(j.entries)) {
+      for (const [k, v] of j.entries) m.set(String(k), adaptNode(v));
+      return m;
+    }
+    if (Array.isArray(j.nodes)) {
+      for (const n of j.nodes) { if (n?.fen4) m.set(String(n.fen4), adaptNode(n)); }
+      return m;
+    }
+    if (typeof j === 'object') {
+      for (const k of Object.keys(j)) m.set(String(k), adaptNode(j[k]));
+      return m;
+    }
+    return m;
+  }
+  function adaptNode(src: any): Node {
+    const moves: Record<string, MoveStat> = {};
+    const arr = Array.isArray(src?.moves)? src.moves : [];
+    for (const mv of arr) {
+      if (!mv?.uci) continue;
+      moves[mv.uci] = { games: Number(mv.games||0), wrWhite: typeof mv.wrWhite==='number'? mv.wrWhite: undefined, wrBlack: typeof mv.wrBlack==='number'? mv.wrBlack: undefined };
+    }
+    const total = Number(src?.totalGames || src?.total || 0);
+    return { total, moves };
+  }
+const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
     try {
       const dbMod = await import('idb');
       const openDB = (dbMod as any).openDB || (dbMod as any).default?.openDB;
@@ -45,7 +98,8 @@ export default function ExplorePage() {
     } catch {}
   }, []);
 
-  // Build index from stream (MVP, whole-file text, limited depth and Top-N during UI rendering)
+  
+// Build index from stream (MVP, whole-file text, limited depth and Top-N during UI rendering)
   const buildIndex = useCallback(async (force?: boolean) => {
     try {
       setLoading(true); setErr(null); setFromCache(null);
@@ -54,59 +108,41 @@ export default function ExplorePage() {
         const cached = await loadCache(ver);
         if (cached) { setIndex(cached); setFromCache(ver); setProgress('Loaded from cache'); return; }
       }
-      setProgress('Fetching PGN…');
-      const r = await fetch(`${STREAM_ENDPOINT}?file=${encodeURIComponent(fileKey)}`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const text = await r.text();
-      const games = splitPgn(text);
-      const map = new Map<Fen4, Node>();
-      let processed = 0;
-      for (let i = 0; i < games.length; i++) {
-        const gtxt = games[i];
-        if (!gtxt) continue;
-        try {
-          const res = extractResult(gtxt);
-          const chess = new Chess();
-          try { chess.loadPgn(gtxt); } catch { continue; }
-          const verbose = chess.history({ verbose: true }) as any[];
-          // Re-simulate for fen-by-ply up to depth limit
-          const startFen = (chess as any).getHeaders?.()?.FEN as string | undefined;
-          const sim = new Chess(startFen);
-          const maxPlies = 16; // limit depth
-          for (let ply = 0; ply < verbose.length && ply < maxPlies; ply++) {
-            const beforeFen = fen4(sim.fen());
-            const mv = verbose[ply];
-            const uci = (mv.from as string) + (mv.to as string) + (mv.promotion || '');
-            const side = sim.turn(); // 'w' or 'b' before move
-            // update map
-            const node = map.get(beforeFen) || { total: 0, moves: {} };
-            node.total += 1;
-            const ms = node.moves[uci] || { games: 0 };
-            ms.games += 1;
-            // approximate win rate for side to move using game result
-            if (res) {
-              const s = side === 'w' ? res.white : res.black;
-              const key = side === 'w' ? 'wrWhite' : 'wrBlack';
-              const prev = (ms as any)[key] || 0;
-              // running average by occurrences at this node
-              const count = (ms as any)[key + '_n'] || 0;
-              const next = (prev * count + s) / (count + 1);
-              (ms as any)[key] = next;
-              (ms as any)[key + '_n'] = count + 1;
-            }
-            node.moves[uci] = ms;
-            map.set(beforeFen, node);
-            try { sim.move({ from: mv.from, to: mv.to, promotion: mv.promotion }); } catch { break; }
-          }
-        } catch {}
-        processed++;
-        if (i % 50 === 0) setProgress(`Indexed ${processed}/${games.length} games…`);
-        // yield to UI
-        if (i % 200 === 0) await new Promise(res => setTimeout(res, 0));
+      // Fast-path: prebuilt index from R2 (if available)
+      const prebuilt = await tryLoadPrebuiltIndex();
+      if (prebuilt?.map && prebuilt.map.size>0) {
+        setIndex(prebuilt.map); setFromCache(prebuilt.version || 'prebuilt'); setProgress('Loaded prebuilt index'); return;
       }
-      setIndex(map);
-      try { await saveCache(ver, map); } catch {}
-      setProgress(`Done: ${processed} games.`);
+
+      // Try worker mode
+      try {
+        const worker = new Worker(new URL('./explore-index.worker.ts', import.meta.url), { type: 'module' });
+        const result = await new Promise<Map<Fen4, Node>>((resolve, reject) => {
+          worker.onmessage = async (e: MessageEvent) => {
+            const msg = e.data || {};
+            if (msg.type === 'progress') setProgress(msg.message || '');
+            else if (msg.type === 'done') { const map = new Map<Fen4, Node>(msg.entries || []); resolve(map); worker.terminate(); }
+            else if (msg.type === 'error') { reject(new Error(msg.message || 'worker_failed')); worker.terminate(); }
+          };
+          worker.onerror = (ev) => { reject(new Error(String((ev as any).message || 'worker_error'))); try { worker.terminate(); } catch {} };
+          worker.postMessage({ type: 'build', endpoint: STREAM_ENDPOINT, file: fileKey, maxPlies: 16 });
+        });
+        setIndex(result); try { (globalThis as any).__EXPLORE_INDEX_MAP = result; } catch {}
+        try { await saveCache(ver, result); } catch {}
+        setProgress('Done.');
+      } catch (werr) {
+        // Fallback inline
+        setProgress('Fetching PGN…');
+        const r = await fetch(`${STREAM_ENDPOINT}?file=${encodeURIComponent(fileKey)}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const text = await r.text();
+        const games = splitPgn(text);
+        const map = await inlineBuild(games, (d, t) => setProgress(`Indexed ${d}/${t} games…`));
+        setIndex(map); try { (globalThis as any).__EXPLORE_INDEX_MAP = map; } catch {}
+        try { await saveCache(ver, map); } catch {}
+        setProgress('Done.');
+      }
+
     } catch (e: any) {
       setErr(e?.message || 'Failed to build index');
     } finally {
@@ -204,7 +240,12 @@ export default function ExplorePage() {
                   </Paper>
                 ))}
                 {(!topMoves.length) && <Typography variant="body2" color="text.secondary">当前位置暂无数据，尝试减少深度或切换文件。</Typography>}
+              
+              <Typography variant="subtitle2" sx={{ mt: 2 }}>Mini Book</Typography>
+              <Stack spacing={0.25}>
+                {renderMiniBook(game.fen(), 2)}
               </Stack>
+</Stack>
             </Box>
           </Box>
         </Stack>
@@ -252,4 +293,82 @@ function uciToSan(fen: string, uci: string): string {
     const m = d.move(move);
     return m?.san || uci;
   } catch { return uci; }
+}
+
+
+async function inlineBuild(games: string[], onProgress?: (done: number, total: number) => void): Promise<Map<Fen4, Node>> {
+  const map = new Map<Fen4, Node>();
+  let processed = 0;
+  for (let i = 0; i < games.length; i++) {
+    const gtxt = games[i];
+    if (!gtxt) continue;
+    try {
+      const res = extractResult(gtxt);
+      const chess = new Chess();
+      try { chess.loadPgn(gtxt); } catch { continue; }
+      const verbose = chess.history({ verbose: true }) as any[];
+      const startFen = (chess as any).getHeaders?.()?.FEN as string | undefined;
+      const sim = new Chess(startFen);
+      const maxPlies = 16;
+      for (let ply = 0; ply < verbose.length && ply < maxPlies; ply++) {
+        const beforeFen = fen4(sim.fen());
+        const mv = verbose[ply];
+        const uci = String(mv.from) + String(mv.to) + (mv.promotion || '');
+        const side = sim.turn();
+        const node = map.get(beforeFen) || { total: 0, moves: {} };
+        node.total += 1;
+        const ms: any = node.moves[uci] || { games: 0 };
+        ms.games += 1;
+        if (res) {
+          const score = side === 'w' ? res.white : res.black;
+          const key = side === 'w' ? 'wrWhite' : 'wrBlack';
+          const cnt = (ms[key + '_n'] || 0) + 1;
+          const prev = (ms[key] || 0) * (cnt - 1);
+          ms[key] = (prev + score) / cnt;
+          ms[key + '_n'] = cnt;
+        }
+        node.moves[uci] = ms;
+        map.set(beforeFen, node);
+        try { sim.move({ from: mv.from, to: mv.to, promotion: mv.promotion }); } catch { break; }
+      }
+    } catch {}
+    processed++;
+    if (onProgress && i % 50 === 0) onProgress(processed, games.length);
+    if (i % 200 === 0) await new Promise(res => setTimeout(res, 0));
+  }
+  return map;
+}
+
+function renderMiniBook(rootFen: string, depth: number): any {
+  try {
+    const d = new Chess(rootFen);
+    const f4 = fen4(d.fen());
+    // Use existing index loaded in component via closure (hack: not accessible here), so fallback: no tree when not in scope.
+    // In this simple MVP, recompute topMoves for this fen using window.__EXPLORE_INDEX if present.
+    const anyWin: any = (globalThis as any);
+    const index: Map<string, Node> | undefined = anyWin.__EXPLORE_INDEX_MAP;
+    if (!index) return null;
+    const node = index.get(f4);
+    if (!node) return null;
+    const side = d.turn();
+    const entries = Object.entries(node.moves).map(([uci, ms]) => {
+      const win = side==='w'? ms.wrWhite : ms.wrBlack;
+      const san = uciToSan(d.fen(), uci);
+      return { uci, games: ms.games, win, san };
+    }).sort((a,b)=> (b.games-a.games)||((b.win||0)-(a.win||0))).slice(0,3);
+    return entries.map((m:any, i:number) => {
+      let child: any = null;
+      if (depth>0) {
+        const c = new Chess(rootFen);
+        try { c.move({ from: m.uci.slice(0,2), to: m.uci.slice(2,4), promotion: m.uci.slice(4) || undefined }); child = renderMiniBook(c.fen(), depth-1); } catch {}
+      }
+      return (
+        <Box key={`${f4}-${m.uci}-${i}`} sx={{ pl: (2-depth)*1.5 }}>
+          <Typography variant="caption" sx={{ fontFamily:'monospace' }}>{m.san || m.uci}</Typography>
+          <Typography variant="caption" color="text.secondary"> · {m.games} · {typeof m.win==='number'? `${Math.round(m.win*100)}%`:'—'}</Typography>
+          {child}
+        </Box>
+      );
+    });
+  } catch { return null; }
 }
