@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert } from "@mui/material";
 import { Chess } from "chess.js";
 import { atom, useAtom } from "jotai";
@@ -11,14 +11,17 @@ import AddTaskRoundedIcon from '@mui/icons-material/AddTaskRounded';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SortRoundedIcon from '@mui/icons-material/SortRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useChessActions } from "@/src/hooks/useChessActions";
 import MiniBook from "./components/MiniBook";
+import ModelGames from "./components/ModelGames";
 
 type Fen4 = string;
 type MoveStat = { games: number; wrWhite?: number; wrBlack?: number };
-type Node = { total: number; moves: Record<string, MoveStat> };
+type Node = { total: number; moves: Record<string, MoveStat>; models?: string[] };
 
 const localGameAtom = atom(new Chess());
+const previewGameAtom = atom(new Chess());
 
 export default function ExplorePage() {
   const [game, setGame] = useAtom(localGameAtom);
@@ -103,7 +106,8 @@ export default function ExplorePage() {
       moves[mv.uci] = { games: Number(mv.games||0), wrWhite: typeof mv.wrWhite==='number'? mv.wrWhite: undefined, wrBlack: typeof mv.wrBlack==='number'? mv.wrBlack: undefined };
     }
     const total = Number(src?.totalGames || src?.total || 0);
-    return { total, moves };
+    const models = Array.isArray(src?.models) ? src.models.map((s: any) => String(s)) : undefined;
+    return { total, moves, models };
   }
 const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
     try {
@@ -168,18 +172,51 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
 
   useEffect(() => { buildIndex(); }, [buildIndex]);
 
+  // Chess actions (must be declared before effects that depend on them)
+  const { playMove, addMoves } = useChessActions(localGameAtom);
+  const { reset: resetPreviewBoard, addMoves: addMovesToPreview } = useChessActions(previewGameAtom);
+  const previewTimerRef = useRef<any>(null);
+  const activeGameAtom = preview.active ? previewGameAtom : localGameAtom;
+
+  // Keyboard shortcuts for preview actions
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Apply preview to main board
+      if (e.key === 'Enter' && preview.active) {
+        if (e.metaKey || e.ctrlKey) {
+          // Add current start move to training if present
+          try { const start = (preview as any).startUci as string | undefined; if (start) onAddToTraining(game.fen(), [start], setTrainingQueueSize); } catch {}
+        } else {
+          e.preventDefault();
+          previewApply(preview, addMoves, setPreview);
+        }
+      }
+      // Replay preview
+      if (e.key === ' ' && preview.active) {
+        e.preventDefault();
+        previewReplay(preview, resetPreviewBoard, addMovesToPreview, previewTimerRef);
+      }
+      // Close preview
+      if (e.key === 'Escape' && preview.active) {
+        e.preventDefault();
+        previewClose(setPreview, previewTimerRef);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview, addMoves, setPreview, resetPreviewBoard, addMovesToPreview]);
+
   // When fen input changes, try to set board
   const onApplyFen = useCallback(() => {
     try { const d = new Chess(fen); setGame(d); } catch { /* ignore */ }
   }, [fen, setGame]);
 
-  const { playMove } = useChessActions(localGameAtom);
-
   const nodeAtFenWithFallback = useCallback((fenStr: string): { node: Node | null; fallback: { type: 'fen4'|'fen2'|'ancestor'|'none'; depth?: number } } => {
     if (!index) return { node: null, fallback: { type: 'none' } };
+    const MIN_TOTAL = 50; // minimal samples to accept a node
     const f4 = fen4(fenStr);
     const nodeDirect = index.get(f4);
-    if (nodeDirect) return { node: nodeDirect, fallback: { type: 'fen4', depth: 0 } };
+    if (nodeDirect && (nodeDirect.total || 0) >= MIN_TOTAL) return { node: nodeDirect, fallback: { type: 'fen4', depth: 0 } };
     const f2 = fen2(fenStr);
     const agg: Node = { total: 0, moves: {} };
     index.forEach((n, k) => {
@@ -198,7 +235,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
         }
       }
     });
-    if (agg.total > 0) return { node: agg, fallback: { type: 'fen2', depth: 0 } };
+    if (agg.total >= MIN_TOTAL) return { node: agg, fallback: { type: 'fen2', depth: 0 } };
     // Ancestor fallback if we have PGN history
     try {
       const g = new Chess();
@@ -208,11 +245,11 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
         const m = g.undo(); if (!m) break; depth++;
         const backFen = g.fen();
         const n = index.get(fen4(backFen));
-        if (n) return { node: n, fallback: { type: 'ancestor', depth } };
+        if (n && (n.total||0) >= MIN_TOTAL) return { node: n, fallback: { type: 'ancestor', depth } };
         const f2a = fen2(backFen);
         const agga: Node = { total: 0, moves: {} };
         index.forEach((n2, k2) => { if (k2.startsWith(f2a)) { agga.total += n2.total; for (const [uci, ms] of Object.entries(n2.moves)) { const cur: any = (agga.moves[uci] || { games: 0 }); cur.games += (ms.games || 0); agga.moves[uci] = cur; } } });
-        if (agga.total > 0) return { node: agga, fallback: { type: 'ancestor', depth } };
+        if (agga.total >= MIN_TOTAL) return { node: agga, fallback: { type: 'ancestor', depth } };
       }
     } catch {}
     return { node: null, fallback: { type: 'none' } };
@@ -234,6 +271,28 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
     }
     return entries.sort((a,b)=> (b.games - a.games) || ((b.win||0)-(a.win||0))).slice(0,5);
   }, [index, game, sortKey, nodeAtFenWithFallback]);
+
+  const onPracticeNow = useCallback(() => {
+    if (!index) return;
+    try {
+      const pv = buildGreedyPv(game.fen(), index, 10);
+      const tasks: Array<{ fen: string; acceptedUci: string[]; createdAt: number }> = [];
+      let d = new Chess(game.fen());
+      for (let i = 0; i < pv.length && tasks.length < 5; i++) {
+        const uci = pv[i];
+        if (!uci) break;
+        // Only create tasks on the plies where it's the current side to move
+        tasks.push({ fen: d.fen(), acceptedUci: [uci], createdAt: Date.now() });
+        try { d.move({ from: uci.slice(0,2), to: uci.slice(2,4), promotion: uci.slice(4) || undefined } as any); } catch { break; }
+      }
+      if (tasks.length) {
+        const q = getTrainingQueue();
+        for (const t of tasks) q.push(t);
+        try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
+        setTrainingQueueSize(q.length);
+      }
+    } catch (e) { console.warn('[PracticeNow] failed', e); }
+  }, [index, game]);
 
   // Stable player objects (avoid re-creating each render to prevent Board effects from looping)
   const whitePlayer = useMemo(() => ({ name: 'White' }), []);
@@ -262,6 +321,14 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
             <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(AUG)</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
             <Button size="small" variant="outlined" onClick={()=> buildIndex(true)}>Rebuild</Button>
+            <Button size="small" variant="contained" onClick={onPracticeNow}>Practice Now (5)</Button>
+            {(fallbackInfo.type === 'none') && (
+              <Stack direction="row" spacing={0.5}>
+                {['e2e4','d2d4','c2c4','g1f3'].map((u)=> (
+                  <Button key={u} size="small" onClick={()=> applyExampleMove(u, setFen, onApplyFen)}>示例 {uciToSan(new Chess().fen(), u)}</Button>
+                ))}
+              </Stack>
+            )}
           </Stack>
 
           {loading && (
@@ -282,8 +349,8 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
             <Box sx={{ flex: '0 0 420px' }}>
               <Board
                 id="explore"
-                canPlay={true}
-                gameAtom={localGameAtom}
+                canPlay={!preview.active}
+                gameAtom={activeGameAtom}
                 boardOrientation={Color.White}
                 whitePlayer={whitePlayer}
                 blackPlayer={blackPlayer}
@@ -316,12 +383,17 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
 
                 <Typography variant="subtitle2" sx={{ mt: 2 }}>Mini Book</Typography>
                 <MiniBook indexMap={index || new Map()} rootFen={game.fen()} depth={2} topN={3} onMove={(uci)=> onPlayMove(uci, game.fen(), playMove)} />
+                <ModelGames indexMap={index || new Map()} rootFen={game.fen()} />
 
                 {preview.active && (
                   <Paper variant="outlined" sx={{ mt: 2, p: 1 }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                       <Typography variant="subtitle2">Preview</Typography>
-                      <IconButton size="small" onClick={()=> setPreview({ active: false })}><CloseRoundedIcon fontSize='small' /></IconButton>
+                      <Box>
+                        <Tooltip title="Replay"><span><IconButton size="small" onClick={()=> previewReplay(preview, resetPreviewBoard, addMovesToPreview, previewTimerRef)}><RestartAltIcon fontSize='small' /></IconButton></span></Tooltip>
+                        <Tooltip title="Apply to board (Enter)"><span><IconButton size="small" onClick={()=> previewApply(preview, addMoves, setPreview)}><PlayArrowRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                        <Tooltip title="Close (Esc)"><span><IconButton size="small" onClick={()=> previewClose(setPreview, previewTimerRef)}><CloseRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                      </Box>
                     </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ fontFamily:'monospace' }}>{(preview.line||[]).join(' ') || '—'}</Typography>
                   </Paper>
@@ -445,7 +517,7 @@ function getTrainingQueue(): Array<{ fen: string; acceptedUci: string[]; created
   return [];
 }
 
-// Build a quick preview line of up to 10 plies by greedily picking the top move at each node
+// Build a quick preview line of up to 10 plies by greedily picking the top move at each node, then start preview board playback
 function onPreviewMoveInline(startUci: string, rootFen: string, index: Map<string, Node> | null, setPreview: (p: any)=> void) {
   if (!index) return;
   try {
@@ -468,7 +540,63 @@ function onPreviewMoveInline(startUci: string, rootFen: string, index: Map<strin
       if (!r) break;
       lineSAN.push(r.san || u);
     }
-    setPreview({ active: true, baseFen: rootFen, line: lineSAN });
+    setPreview({ active: true, baseFen: rootFen, line: lineSAN, startUci });
     console.log('[explore] preview_click', { startUci, len: lineSAN.length });
   } catch {}
+}
+
+// Preview helpers
+function previewReplay(preview: any, resetPreviewBoard: (opts: any)=>void, addMovesToPreview: (moves: string[])=>void, timerRef: any) {
+  if (!preview?.active || !preview?.baseFen || !Array.isArray(preview.line)) return;
+  if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  resetPreviewBoard({ fen: preview.baseFen, noHeaders: true });
+  let i = 0;
+  timerRef.current = setInterval(() => {
+    if (i >= preview.line.length) { clearInterval(timerRef.current); timerRef.current = null; return; }
+    addMovesToPreview([preview.line[i]]);
+    i++;
+  }, 350);
+}
+
+function previewApply(preview: any, addMoves: (moves: string[])=> void, setPreview: (p:any)=> void) {
+  if (!preview?.active || !Array.isArray(preview.line)) return;
+  addMoves(preview.line);
+  setPreview({ active: false });
+}
+
+function previewClose(setPreview: (p:any)=> void, timerRef: any) {
+  if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  setPreview({ active: false });
+}
+
+function applyExampleMove(uci: string, setFen: (s:string)=>void, onApplyFen: ()=>void) {
+  try {
+    const d = new Chess();
+    const from = uci.slice(0,2), to = uci.slice(2,4); const promotion = uci.slice(4) || undefined;
+    d.move({ from, to, promotion } as any);
+    const f = d.fen();
+    setFen(f);
+    onApplyFen();
+  } catch {}
+}
+
+// Build a greedy PV (sequence of uci) by always picking the highest games move at each node
+function buildGreedyPv(rootFen: string, index: Map<string, Node>, maxPlies = 10): string[] {
+  const out: string[] = [];
+  try {
+    const d = new Chess(rootFen);
+    for (let i = 0; i < maxPlies; i++) {
+      const f4 = (d.fen().split(' ').slice(0,4).join(' '));
+      const node = index.get(f4);
+      if (!node) break;
+      const entries = Object.entries(node.moves || {}).map(([uci, ms]) => ({ uci, games: ms.games || 0 }));
+      if (!entries.length) break;
+      entries.sort((a,b)=> b.games - a.games);
+      const u = entries[0].uci;
+      out.push(u);
+      const res = d.move({ from: u.slice(0,2), to: u.slice(2,4), promotion: u.slice(4) || undefined } as any);
+      if (!res) break;
+    }
+  } catch {}
+  return out;
 }
