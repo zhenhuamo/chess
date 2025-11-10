@@ -1,6 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert, Slider } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert, Slider, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Chess } from "chess.js";
 import { atom, useAtom } from "jotai";
 import Board from "@/src/components/board";
@@ -15,6 +16,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import PauseRoundedIcon from '@mui/icons-material/PauseRounded';
 import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded';
 import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded';
+import Link from 'next/link';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useChessActions } from "@/src/hooks/useChessActions";
 import MiniBook from "./components/MiniBook";
@@ -332,8 +334,9 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
   const blackPlayer = useMemo(() => ({ name: 'Black' }), []);
 
   return (
-    <Box sx={{ p: { xs: 1, md: 2 }, display: 'flex', justifyContent: 'center' }}>
-      <Paper variant="outlined" sx={{ p: { xs: 1, md: 2 }, width: '100%', maxWidth: 1200 }}>
+    <Box sx={{ p: { xs: 1, md: 2 } }}>
+      {/* TOOL SECTION */}
+      <Paper variant="outlined" sx={{ p: { xs: 1, md: 2 }, width: '100%', maxWidth: 1200, mx: 'auto' }}>
         <Stack spacing={1}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Position Explorer</Typography>
           {/* Landing intro */}
@@ -457,6 +460,94 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
               </Stack>
             </Box>
           </Box>
+        </Stack>
+      </Paper>
+
+      {/* LANDING / SEO SECTION */}
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, width: '100%', maxWidth: 1200, mx: 'auto', mt: 3 }}>
+        <Stack spacing={2}>
+          <Typography component="h2" variant="h5" sx={{ fontWeight: 800 }}>Why This Position Explorer Matters for Chess Analysis</Typography>
+          <Typography color="text.secondary">
+            This page is built for chess analysis. It lets you explore real-game move choices from large open datasets and see which lines perform best. Compared with a pure engine, data‑driven chess analysis helps you understand what humans actually play online and over‑the‑board, and which practical options score well in real games.
+          </Typography>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Highlights</Typography>
+              <ul style={{ margin: '8px 0 0 18px' }}>
+                <li>Top moves with games and win rates to power your chess analysis decisions.</li>
+                <li>Mini book tree to preview lines quickly (no engine required).</li>
+                <li>Model games you can open in the Analyzer for deeper chess analysis with Stockfish.</li>
+                <li>Practice queue to convert findings into drills in one click.</li>
+              </ul>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Who Is It For</Typography>
+              <ul style={{ margin: '8px 0 0 18px' }}>
+                <li>Players who want free chess analysis without sign‑in.</li>
+                <li>Opening learners who need a fast, data‑first view before engine analysis.</li>
+                <li>Coaches preparing model lines and practice tasks for students.</li>
+              </ul>
+            </Paper>
+          </Stack>
+
+          <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>How It Works</Typography>
+          <Typography color="text.secondary">
+            We aggregate real games into a lightweight index. When you paste a FEN above, the explorer locates the position and shows the most played continuations. You can preview a line, add it to practice, or open a model game in the full Analyzer. For engine‑powered chess analysis, head to <Button component={Link} href="/analyze" size="small">/analyze</Button> where Stockfish provides multi‑PV evaluations.
+          </Typography>
+
+          <Divider />
+
+          <Stack spacing={1}>
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>Common Searches</Typography>
+            <Typography color="text.secondary">
+              Many players look for chess analysis tools that are fast and free. This page complements full engines with a data view: lichess analysis style databases, a free chess analysis board for openings, and quick links to our engine chess analysis in the Analyzer. If you came for lichess analysis board alternatives or chess.com analysis ideas, this explorer shows what people actually play before you run deep engine analysis. It is a practical bridge between a chess game analysis database and a chess engine analysis session.
+            </Typography>
+            <Typography color="text.secondary">
+              Keywords naturally related to this page include: chess analysis, lichess analysis, chess analysis free, chess analysis board, free chess analysis, lichess analysis board, chess.com analysis, chess game analysis, chess board analysis, chess engine analysis, chess com analysis, free analysis chess, chess free analysis, analysis chess. Our site focuses on chess analysis as the core experience.
+            </Typography>
+          </Stack>
+
+          <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>FAQ</Typography>
+          <Accordion disableGutters>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Is this a chess analysis engine or a database?</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography color="text.secondary">It is a data‑driven explorer. For engine chess analysis, open a position here and then use our Analyzer page with Stockfish. Together they create a complete chess analysis workflow.</Typography>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion disableGutters>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Is it free to use?</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography color="text.secondary">Yes. The position explorer and the Analyzer provide free chess analysis features. No sign‑in is required.</Typography>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion disableGutters>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>How does this compare to lichess analysis or chess.com analysis?</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography color="text.secondary">We focus on a quick, practical view of what players choose in real games. Use this explorer to see popular and successful moves, then use the Analyzer for deep engine‑based chess analysis. It complements lichess analysis and chess.com analysis by giving you a data‑first starting point.</Typography>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion disableGutters>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Can I practice the lines I find?</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography color="text.secondary">Yes. Add top moves to your practice queue and start training in one click. It turns chess analysis into spaced practice.</Typography>
+            </AccordionDetails>
+          </Accordion>
+
+          <Stack direction="row" spacing={1}>
+            <Button component={Link} href="/analyze" variant="contained">Open Analyzer</Button>
+            <Button component={Link} href="#" onClick={(e:any)=>{ e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Back to Top</Button>
+          </Stack>
+
+          
         </Stack>
       </Paper>
     </Box>
