@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert, Slider } from "@mui/material";
 import { Chess } from "chess.js";
 import { atom, useAtom } from "jotai";
 import Board from "@/src/components/board";
@@ -11,10 +11,14 @@ import AddTaskRoundedIcon from '@mui/icons-material/AddTaskRounded';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SortRoundedIcon from '@mui/icons-material/SortRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import PauseRoundedIcon from '@mui/icons-material/PauseRounded';
+import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded';
+import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useChessActions } from "@/src/hooks/useChessActions";
 import MiniBook from "./components/MiniBook";
 import ModelGames from "./components/ModelGames";
+import { logEvent } from "@/src/lib/telemetry";
 
 type Fen4 = string;
 type MoveStat = { games: number; wrWhite?: number; wrBlack?: number };
@@ -37,7 +41,7 @@ export default function ExplorePage() {
 
   // UI states
   const [sortKey, setSortKey] = useState<'hot'|'win'>('hot');
-  const [preview, setPreview] = useState<{ active: boolean; baseFen?: string; line?: string[] }>({ active: false });
+  const [preview, setPreview] = useState<{ active: boolean; baseFen?: string; line?: string[]; startUci?: string; idx?: number; playing?: boolean }>({ active: false });
   const [fallbackInfo, setFallbackInfo] = useState<{ type: 'fen4'|'fen2'|'ancestor'|'none'; depth?: number }>({ type: 'none' });
   const [trainingQueueSize, setTrainingQueueSize] = useState<number>(() => getTrainingQueue().length);
 
@@ -171,6 +175,11 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
   }, [fileKey, STREAM_ENDPOINT, versionTag, loadCache, saveCache]);
 
   useEffect(() => { buildIndex(); }, [buildIndex]);
+  useEffect(() => {
+    const onUnload = () => { try { const { flushTelemetry } = require('@/src/lib/telemetry'); flushTelemetry(); } catch {} };
+    if (typeof window !== 'undefined') window.addEventListener('beforeunload', onUnload);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('beforeunload', onUnload); };
+  }, []);
 
   // Chess actions (must be declared before effects that depend on them)
   const { playMove, addMoves } = useChessActions(localGameAtom);
@@ -272,6 +281,8 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
     return entries.sort((a,b)=> (b.games - a.games) || ((b.win||0)-(a.win||0))).slice(0,5);
   }, [index, game, sortKey, nodeAtFenWithFallback]);
 
+  const eventCtx = useCallback(() => ({ fen4: fen4(game.fen()), source: indexSource, sortKey, fallback: fallbackInfo?.type, fallbackDepth: fallbackInfo?.depth, queueSize: getTrainingQueue().length }), [game, indexSource, sortKey, fallbackInfo]);
+
   const onPracticeNow = useCallback(() => {
     if (!index) return;
     try {
@@ -290,9 +301,22 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
         for (const t of tasks) q.push(t);
         try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
         setTrainingQueueSize(q.length);
+        logEvent('practice_now', { ...eventCtx(), add: tasks.length, after: q.length });
       }
     } catch (e) { console.warn('[PracticeNow] failed', e); }
-  }, [index, game]);
+  }, [index, game, eventCtx]);
+
+  const onStartPractice = useCallback(() => {
+    try {
+      const q = getTrainingQueue();
+      if (!q.length) { onPracticeNow(); return; }
+      const first = q[0];
+      const payload = { fen: first.fen, acceptedUci: first.acceptedUci, attempts: 3 };
+      localStorage.setItem('analyze:startup', JSON.stringify(payload));
+      logEvent('practice_start', { ...eventCtx(), queue: q.length });
+      location.href = '/analyze';
+    } catch (e) { console.warn('[StartPractice] failed', e); }
+  }, [onPracticeNow, eventCtx]);
 
   // Stable player objects (avoid re-creating each render to prevent Board effects from looping)
   const whitePlayer = useMemo(() => ({ name: 'White' }), []);
@@ -322,6 +346,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
             <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
             <Button size="small" variant="outlined" onClick={()=> buildIndex(true)}>Rebuild</Button>
             <Button size="small" variant="contained" onClick={onPracticeNow}>Practice Now (5)</Button>
+            <Button size="small" onClick={onStartPractice}>Start Practice</Button>
             {(fallbackInfo.type === 'none') && (
               <Stack direction="row" spacing={0.5}>
                 {['e2e4','d2d4','c2c4','g1f3'].map((u)=> (
@@ -355,6 +380,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
                 whitePlayer={whitePlayer}
                 blackPlayer={blackPlayer}
                 showEvaluationBar={false}
+                extraArrows={computePreviewArrows(preview)}
               />
             </Box>
             <Box sx={{ flex: '1 1 360px', minWidth: 320 }}>
@@ -390,10 +416,17 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                       <Typography variant="subtitle2">Preview</Typography>
                       <Box>
-                        <Tooltip title="Replay"><span><IconButton size="small" onClick={()=> previewReplay(preview, resetPreviewBoard, addMovesToPreview, previewTimerRef)}><RestartAltIcon fontSize='small' /></IconButton></span></Tooltip>
+                        <Tooltip title="Previous"><span><IconButton size="small" onClick={()=> previewStep(preview, -1, setPreview, resetPreviewBoard, addMovesToPreview)}><SkipPreviousRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                        <Tooltip title={preview.playing ? 'Pause' : 'Play'}><span><IconButton size="small" onClick={()=> previewToggle(preview, setPreview, previewTimerRef, resetPreviewBoard, addMovesToPreview)}>{preview.playing ? <PauseRoundedIcon fontSize='small'/> : <PlayArrowRoundedIcon fontSize='small'/>}</IconButton></span></Tooltip>
+                        <Tooltip title="Next"><span><IconButton size="small" onClick={()=> previewStep(preview, 1, setPreview, resetPreviewBoard, addMovesToPreview)}><SkipNextRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
+                        <Tooltip title="Replay from start"><span><IconButton size="small" onClick={()=> previewReplay(preview, resetPreviewBoard, addMovesToPreview, previewTimerRef)}><RestartAltIcon fontSize='small' /></IconButton></span></Tooltip>
                         <Tooltip title="Apply to board (Enter)"><span><IconButton size="small" onClick={()=> previewApply(preview, addMoves, setPreview)}><PlayArrowRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
                         <Tooltip title="Close (Esc)"><span><IconButton size="small" onClick={()=> previewClose(setPreview, previewTimerRef)}><CloseRoundedIcon fontSize='small' /></IconButton></span></Tooltip>
                       </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                      <Typography variant="caption" sx={{ width: 40, textAlign: 'right' }}>{Math.min(preview.idx||0, (preview.line?.length||0))}/{preview.line?.length||0}</Typography>
+                      <Slider size="small" min={0} max={(preview.line?.length||0)} value={Math.min(preview.idx||0, (preview.line?.length||0))} onChange={(_,v)=> previewSeekTo(preview, Number(v), setPreview, resetPreviewBoard, addMovesToPreview)} sx={{ flex: 1 }} />
                     </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ fontFamily:'monospace' }}>{(preview.line||[]).join(' ') || '—'}</Typography>
                   </Paper>
@@ -500,7 +533,7 @@ function onPlayMove(uci: string, fen: string, playMove: (args: any)=> any) {
     const legal = d.move({ from, to, promotion });
     if (!legal) return;
     playMove({ from, to, promotion });
-    console.log('[explore] play_click', { uci, fen4: fen4(fen) });
+    logEvent('play_click', { uci, fen4: fen4(fen) });
   } catch {}
 }
 
@@ -509,7 +542,7 @@ function onAddToTraining(fen: string, acceptedUci: string[], setSize: (n:number)
   q.push({ fen, acceptedUci, createdAt: Date.now() });
   try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
   setSize(q.length);
-  console.log('[explore] add_to_training', { fen4: fen4(fen), acceptedUci });
+  logEvent('add_to_training', { fen4: fen4(fen), acceptedUci });
 }
 
 function getTrainingQueue(): Array<{ fen: string; acceptedUci: string[]; createdAt: number }> {
@@ -540,8 +573,8 @@ function onPreviewMoveInline(startUci: string, rootFen: string, index: Map<strin
       if (!r) break;
       lineSAN.push(r.san || u);
     }
-    setPreview({ active: true, baseFen: rootFen, line: lineSAN, startUci });
-    console.log('[explore] preview_click', { startUci, len: lineSAN.length });
+    setPreview({ active: true, baseFen: rootFen, line: lineSAN, startUci, idx: 0, playing: false });
+    logEvent('preview_click', { startUci, len: lineSAN.length });
   } catch {}
 }
 
@@ -599,4 +632,75 @@ function buildGreedyPv(rootFen: string, index: Map<string, Node>, maxPlies = 10)
     }
   } catch {}
   return out;
+}
+
+// Step/seek/play helpers for preview
+function previewResetToIdx(preview: any, idx: number, resetPreviewBoard: (opts:any)=>void, addMovesToPreview: (moves: string[])=>void) {
+  if (!preview?.active || !preview?.baseFen || !Array.isArray(preview.line)) return;
+  const clamp = Math.max(0, Math.min(idx, preview.line.length));
+  resetPreviewBoard({ fen: preview.baseFen, noHeaders: true });
+  const first = preview.line.slice(0, clamp);
+  if (first.length) addMovesToPreview(first);
+}
+
+function previewSeekTo(preview: any, idx: number, setPreview: (p:any)=>void, resetPreviewBoard: (opts:any)=>void, addMovesToPreview: (moves: string[])=>void) {
+  previewResetToIdx(preview, idx, resetPreviewBoard, addMovesToPreview);
+  setPreview({ ...preview, idx, playing: false });
+}
+
+function previewStep(preview: any, delta: number, setPreview: (p:any)=>void, resetPreviewBoard: (opts:any)=>void, addMovesToPreview: (moves: string[])=>void) {
+  const next = Math.max(0, Math.min((preview.idx||0) + delta, (preview.line?.length||0)));
+  previewSeekTo(preview, next, setPreview, resetPreviewBoard, addMovesToPreview);
+}
+
+function previewToggle(preview: any, setPreview: (p:any)=>void, timerRef: any, resetPreviewBoard: (opts:any)=>void, addMovesToPreview: (moves: string[])=>void) {
+  if (!preview?.active || !Array.isArray(preview.line)) return;
+  if (preview.playing) {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setPreview({ ...preview, playing: false });
+    return;
+  }
+  // start playing from current idx
+  const startIdx = Math.max(0, Math.min(preview.idx || 0, preview.line.length));
+  // Reset and play progressively
+  previewResetToIdx(preview, startIdx, resetPreviewBoard, addMovesToPreview);
+  setPreview({ ...preview, playing: true });
+  let i = startIdx;
+  if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  timerRef.current = setInterval(() => {
+    i++;
+    if (i > preview.line.length) { clearInterval(timerRef.current); timerRef.current = null; setPreview((p:any)=> ({ ...p, playing: false, idx: preview.line.length })); return; }
+    previewResetToIdx(preview, i, resetPreviewBoard, addMovesToPreview);
+    setPreview((p:any)=> ({ ...p, idx: i }));
+  }, 350);
+}
+
+function computePreviewArrows(preview: any): Array<{ startSquare: string; endSquare: string; color?: string }> {
+  try {
+    if (!preview?.active || !preview?.baseFen || !Array.isArray(preview.line)) return [];
+    const idx = Math.max(0, Math.min(preview.idx || 0, preview.line.length));
+    if (idx >= preview.line.length) return [];
+    const currentFen = fenAfter(preview.baseFen, preview.line.slice(0, idx));
+    const nextSan = preview.line[idx];
+    const move = sanToMove(currentFen, nextSan);
+    if (!move) return [];
+    return [{ startSquare: move.from, endSquare: move.to, color: '#33a3ff' }];
+  } catch { return []; }
+}
+
+function fenAfter(base: string, sans: string[]): string {
+  try {
+    const d = new Chess(base);
+    for (const s of sans) { try { d.move(s); } catch { break; } }
+    return d.fen();
+  } catch { return base; }
+}
+
+function sanToMove(fen: string, san: string): { from: string; to: string } | null {
+  try {
+    const d = new Chess(fen);
+    const res = d.move(san);
+    if (!res) return null;
+    return { from: res.from, to: res.to } as any;
+  } catch { return null; }
 }

@@ -29,12 +29,14 @@ export interface Props {
   showBestMoveArrow?: boolean;
   showPlayerMoveIconAtom?: PrimitiveAtom<boolean>;
   showEvaluationBar?: boolean;
+  // Optional extra arrows provided by parent, rendered in addition to the best-move arrow
+  extraArrows?: Array<{ startSquare: string; endSquare: string; color?: string }>;
 }
 
 // Use a stable default atom to avoid creating a new atom() on every render (which can trigger re‑subscriptions/loops)
 const DEFAULT_CURRENT_POSITION_ATOM: PrimitiveAtom<CurrentPosition> = atom({} as any);
 
-export default function Board({ id: boardId, canPlay, gameAtom, boardSize, whitePlayer, blackPlayer, boardOrientation = Color.White, currentPositionAtom = DEFAULT_CURRENT_POSITION_ATOM, showBestMoveArrow = false, showPlayerMoveIconAtom, showEvaluationBar = false, }: Props) {
+export default function Board({ id: boardId, canPlay, gameAtom, boardSize, whitePlayer, blackPlayer, boardOrientation = Color.White, currentPositionAtom = DEFAULT_CURRENT_POSITION_ATOM, showBestMoveArrow = false, showPlayerMoveIconAtom, showEvaluationBar = false, extraArrows = [], }: Props) {
   const boardRef = useRef<HTMLDivElement>(null);
   const game = useAtomValue(gameAtom);
   console.log('[Board] game updated, history length=', game.history().length, 'FEN=', game.fen()?.substring(0, 20));
@@ -177,15 +179,23 @@ export default function Board({ id: boardId, canPlay, gameAtom, boardSize, white
   const customArrows: Array<{ startSquare: string; endSquare: string; color: string }> = useMemo(() => {
     const bestMove = position?.lastEval?.bestMove;
     const moveClassification = position?.eval?.moveClassification as MoveClassification | undefined;
+    const arr: Array<{ startSquare: string; endSquare: string; color: string }> = [];
     if (bestMove && showBestMoveArrow && moveClassification && ![MoveClassification.Best, MoveClassification.Opening, MoveClassification.Forced, MoveClassification.Perfect].includes(moveClassification)) {
-      return [{
+      arr.push({
         startSquare: bestMove.slice(0, 2),
         endSquare: bestMove.slice(2, 4),
         color: tinycolor(CLASSIFICATION_COLORS[MoveClassification.Best]).spin(-boardHueUsed).toHexString(),
-      }];
+      });
     }
-    return [];
-  }, [position, showBestMoveArrow, boardHueUsed]);
+    // Append any extra arrows from parent
+    if (Array.isArray(extraArrows) && extraArrows.length) {
+      for (const a of extraArrows) {
+        if (!a?.startSquare || !a?.endSquare) continue;
+        arr.push({ startSquare: a.startSquare, endSquare: a.endSquare, color: a.color || '#3fa7ff' });
+      }
+    }
+    return arr;
+  }, [position, showBestMoveArrow, boardHueUsed, extraArrows]);
 
   const SquareRenderer: any = useMemo(() => {
     return getSquareRenderer({ currentPositionAtom: currentPositionAtom, clickedSquaresAtom, playableSquaresAtom, showPlayerMoveIconAtom, });

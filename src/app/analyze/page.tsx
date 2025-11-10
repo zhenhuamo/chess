@@ -15,7 +15,8 @@ import Link from "next/link";
 import MovesTab from "@/src/sections/analysis/panelBody/movesTab";
 import GameLoader from "@/src/sections/analysis/gameLoader";
 import { useAtomValue, useSetAtom } from "jotai";
-import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom } from "@/src/sections/analysis/states";
+import { boardAtom, gameAtom, gameEvalAtom, gameMetaAtom, retryStateAtom } from "@/src/sections/analysis/states";
+import { logEvent } from "@/src/lib/telemetry";
 import { useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import EngineSettingsButton from "@/src/sections/engineSettings/engineSettingsButton";
@@ -37,6 +38,8 @@ function GameAnalysisInner() {
   const board = useAtomValue(boardAtom);
   const setGame = useSetAtom(gameAtom);
   const setBoard = useSetAtom(boardAtom);
+  const setRetry = useSetAtom(retryStateAtom);
+  const retry = useAtomValue(retryStateAtom);
   const searchParams = useSearchParams();
   const setGameMeta = useSetAtom(gameMetaAtom);
   const showMovesTab = game.history().length > 0 || board.history().length > 0;
@@ -85,6 +88,52 @@ function GameAnalysisInner() {
     })();
     return () => { cancelled = true; };
   }, [searchParams, setGame, setBoard]);
+
+  // Startup training bridge from /explore
+  useEffect(() => {
+    // If a specific gameId is loaded, skip the training startup
+    const idStr = searchParams?.get('gameId');
+    if (idStr) return;
+    try {
+      const raw = localStorage.getItem('analyze:startup');
+      if (!raw) return;
+      localStorage.removeItem('analyze:startup');
+      const payload = JSON.parse(raw || 'null');
+      const fen = String(payload?.fen || '');
+      const acceptedUci: string[] = Array.isArray(payload?.acceptedUci) ? payload.acceptedUci : [];
+      const attempts = Number(payload?.attempts || 3);
+      if (!fen || !acceptedUci.length) return;
+      const g = new Chess(fen);
+      setGame(g);
+      setBoard(new Chess(fen));
+      setRetry({ active: true, baseFen: fen, allowedUci: acceptedUci, attemptsLeft: attempts, maxAttempts: attempts, hintStage: 0, message: 'Play one of the recommended candidates.' });
+      logEvent('practice_started', { fen4: fen.split(' ').slice(0,4).join(' '), accepted: acceptedUci.length });
+    } catch {}
+  }, [searchParams, setGame, setBoard, setRetry]);
+
+  // Auto-advance training queue when a retry succeeds
+  useEffect(() => {
+    if (!retry?.active || !retry?.success) return;
+    try {
+      const raw = localStorage.getItem('explore:trainingQueue');
+      const q: Array<{ fen: string; acceptedUci: string[]; createdAt: number }> = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(q) || q.length === 0) return;
+      // consume current task
+      q.shift();
+      localStorage.setItem('explore:trainingQueue', JSON.stringify(q));
+      if (q.length > 0) {
+        const next = q[0];
+        const attempts = 3;
+        const g = new Chess(next.fen);
+        setGame(g);
+        setBoard(new Chess(next.fen));
+        setRetry({ active: true, baseFen: next.fen, allowedUci: next.acceptedUci || [], attemptsLeft: attempts, maxAttempts: attempts, hintStage: 0, message: 'Next task. Play one of the recommended candidates.' });
+        logEvent('practice_next', { remaining: q.length, fen4: next.fen.split(' ').slice(0,4).join(' ') });
+      } else {
+        logEvent('practice_finish', {});
+      }
+    } catch {}
+  }, [retry?.success, retry?.active, setBoard, setGame, setRetry]);
   // Drag handlers for vertical splitter
   const draggingRef = useRef(false);
   const onDragStart = (e: React.MouseEvent | React.TouchEvent) => {
