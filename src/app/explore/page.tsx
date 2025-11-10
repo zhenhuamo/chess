@@ -504,8 +504,17 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
               Many players look for chess analysis tools that are fast and free. This page complements full engines with a data view: lichess analysis style databases, a free chess analysis board for openings, and quick links to our engine chess analysis in the Analyzer. If you came for lichess analysis board alternatives or chess.com analysis ideas, this explorer shows what people actually play before you run deep engine analysis. It is a practical bridge between a chess game analysis database and a chess engine analysis session.
             </Typography>
             <Typography color="text.secondary">
-              Keywords naturally related to this page include: chess analysis, lichess analysis, chess analysis free, chess analysis board, free chess analysis, lichess analysis board, chess.com analysis, chess game analysis, chess board analysis, chess engine analysis, chess com analysis, free analysis chess, chess free analysis, analysis chess. Our site focuses on chess analysis as the core experience.
+              Why users choose this page: it is a fast, data‑driven layer for chess analysis. You see what real players actually play, which moves win more often, and how lines flow a few moves ahead—before you spend time on deep engine evaluation. It is free, no sign‑in, privacy‑friendly, and integrated with our Analyzer and Practice so you can move from discovery to training in seconds.
             </Typography>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: .5 }}>What makes this tool different</Typography>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                <li>Data first: popular moves and win rates from real games, not just engine guesses.</li>
+                <li>Instant previews: mini book tree and one‑click line preview for quick understanding.</li>
+                <li>Seamless workflow: open model games in the Analyzer, or add lines to Practice.</li>
+                <li>Free and local: works without accounts; caching keeps it snappy on repeat visits.</li>
+              </ul>
+            </Paper>
           </Stack>
 
           <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>FAQ</Typography>
