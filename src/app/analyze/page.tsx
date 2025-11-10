@@ -107,7 +107,7 @@ function GameAnalysisInner() {
       setGame(g);
       setBoard(new Chess(fen));
       setRetry({ active: true, baseFen: fen, allowedUci: acceptedUci, attemptsLeft: attempts, maxAttempts: attempts, hintStage: 0, message: 'Play one of the recommended candidates.' });
-      logEvent('practice_started', { fen4: fen.split(' ').slice(0,4).join(' '), accepted: acceptedUci.length });
+      logEvent('practice_started', { page: 'analyze', fen4: fen.split(' ').slice(0,4).join(' '), accepted: acceptedUci.length });
     } catch {}
   }, [searchParams, setGame, setBoard, setRetry]);
 
@@ -128,12 +128,19 @@ function GameAnalysisInner() {
         setGame(g);
         setBoard(new Chess(next.fen));
         setRetry({ active: true, baseFen: next.fen, allowedUci: next.acceptedUci || [], attemptsLeft: attempts, maxAttempts: attempts, hintStage: 0, message: 'Next task. Play one of the recommended candidates.' });
-        logEvent('practice_next', { remaining: q.length, fen4: next.fen.split(' ').slice(0,4).join(' ') });
+        logEvent('practice_next', { page: 'analyze', remaining: q.length, fen4: next.fen.split(' ').slice(0,4).join(' ') });
       } else {
-        logEvent('practice_finish', {});
+        logEvent('practice_finish', { page: 'analyze' });
       }
     } catch {}
   }, [retry?.success, retry?.active, setBoard, setGame, setRetry]);
+
+  // Flush telemetry on unload
+  useEffect(() => {
+    const onUnload = () => { try { const { flushTelemetry } = require('@/src/lib/telemetry'); flushTelemetry(); } catch {} };
+    if (typeof window !== 'undefined') window.addEventListener('beforeunload', onUnload);
+    return () => { if (typeof window !== 'undefined') window.removeEventListener('beforeunload', onUnload); };
+  }, []);
   // Drag handlers for vertical splitter
   const draggingRef = useRef(false);
   const onDragStart = (e: React.MouseEvent | React.TouchEvent) => {

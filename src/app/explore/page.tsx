@@ -301,7 +301,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
         for (const t of tasks) q.push(t);
         try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
         setTrainingQueueSize(q.length);
-        logEvent('practice_now', { ...eventCtx(), add: tasks.length, after: q.length });
+        logEvent('practice_now', { page: 'explore', ...eventCtx(), add: tasks.length, after: q.length });
       }
     } catch (e) { console.warn('[PracticeNow] failed', e); }
   }, [index, game, eventCtx]);
@@ -313,7 +313,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
       const first = q[0];
       const payload = { fen: first.fen, acceptedUci: first.acceptedUci, attempts: 3 };
       localStorage.setItem('analyze:startup', JSON.stringify(payload));
-      logEvent('practice_start', { ...eventCtx(), queue: q.length });
+      logEvent('practice_start', { page: 'explore', ...eventCtx(), queue: q.length });
       location.href = '/analyze';
     } catch (e) { console.warn('[StartPractice] failed', e); }
   }, [onPracticeNow, eventCtx]);
@@ -329,18 +329,20 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Position Explorer</Typography>
           {/* Landing intro */}
           <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary">研究任意位置的下一步：热门分支、胜率、简易书树与范例局；可将分支加入练习。</Typography>
+            <Typography variant="body2" color="text.secondary">Study the next moves for any position: hot choices, win rates, a mini opening tree, and model games. Add lines to your practice queue.</Typography>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
               <Chip size="small" label={`Source: ${indexSource ?? '—'}`} variant="outlined" />
               {!!fromCache && <Chip size="small" label={`Index: ${fromCache}`} variant="outlined" />}
               {manifestMeta?.date && <Chip size="small" label={`Updated: ${manifestMeta?.date}`} variant="outlined" />}
-              <Chip size="small" label={`Nodes: ${index?.size ?? 0}`} variant="outlined" />
-              <Chip size="small" label={`Training: ${trainingQueueSize}`} variant="outlined" />
+              {manifestMeta?.coverage && <Chip size="small" label={`Coverage: ${manifestMeta.coverage}`} variant="outlined" />}
+              {Number.isFinite(Number(manifestMeta?.totalGames)) && <Chip size="small" label={`Total: ${formatInt(manifestMeta?.totalGames)}` } variant="outlined" />}
+              <Chip size="small" label={`Nodes: ${formatInt(index?.size ?? 0)}`} variant="outlined" />
+              <Chip size="small" label={`Training: ${formatInt(trainingQueueSize)}`} variant="outlined" />
             </Stack>
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField size="small" label="FEN" fullWidth value={fen} onChange={(e)=> setFen(e.target.value)} />
-            <Button variant="outlined" onClick={onApplyFen}>应用 FEN</Button>
+            <Button variant="outlined" onClick={onApplyFen}>Apply FEN</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-4000.pgn')}>4000</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(AUG)</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
@@ -350,7 +352,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
             {(fallbackInfo.type === 'none') && (
               <Stack direction="row" spacing={0.5}>
                 {['e2e4','d2d4','c2c4','g1f3'].map((u)=> (
-                  <Button key={u} size="small" onClick={()=> applyExampleMove(u, setFen, onApplyFen)}>示例 {uciToSan(new Chess().fen(), u)}</Button>
+                  <Button key={u} size="small" onClick={()=> applyExampleMove(u, setFen, onApplyFen)}>Example {uciToSan(new Chess().fen(), u)}</Button>
                 ))}
               </Stack>
             )}
@@ -363,9 +365,9 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
           {fromCache && (<Typography variant="caption" color="text.secondary">Loaded · {indexSource} · {fromCache}</Typography>)}
           {(fallbackInfo.type !== 'fen4') && (
             <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ py: 0.5 }}>
-              {fallbackInfo.type === 'fen2' && '当前 FEN4 暂无数据，已回退到 fen2 聚合。'}
-              {fallbackInfo.type === 'ancestor' && `已回退至 ${fallbackInfo.depth} plies 前的最近有数据位置。`}
-              {fallbackInfo.type === 'none' && '未命中数据。请回退半步或从示例起点 e4/d4/c4/Nf3 开始。'}
+              {fallbackInfo.type === 'fen2' && 'No data for FEN-4. Showing aggregated FEN-2 stats.'}
+              {fallbackInfo.type === 'ancestor' && `Fell back to the nearest ancestor with data (${fallbackInfo.depth} plies earlier).`}
+              {fallbackInfo.type === 'none' && 'No data found. Try stepping back a half-move or start from an example e4/d4/c4/Nf3.'}
             </Alert>
           )}
 
@@ -405,7 +407,7 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
                     </Box>
                   </Paper>
                 ))}
-                {(!topMoves.length) && <Typography variant="body2" color="text.secondary">当前位置暂无数据，尝试减少深度或切换文件。</Typography>}
+                {(!topMoves.length) && <Typography variant="body2" color="text.secondary">No data for this position. Try reducing depth or switch dataset.</Typography>}
 
                 <Typography variant="subtitle2" sx={{ mt: 2 }}>Mini Book</Typography>
                 <MiniBook indexMap={index || new Map()} rootFen={game.fen()} depth={2} topN={3} onMove={(uci)=> onPlayMove(uci, game.fen(), playMove)} />
@@ -533,7 +535,7 @@ function onPlayMove(uci: string, fen: string, playMove: (args: any)=> any) {
     const legal = d.move({ from, to, promotion });
     if (!legal) return;
     playMove({ from, to, promotion });
-    logEvent('play_click', { uci, fen4: fen4(fen) });
+    logEvent('play_click', { page: 'explore', uci, fen4: fen4(fen) });
   } catch {}
 }
 
@@ -542,7 +544,7 @@ function onAddToTraining(fen: string, acceptedUci: string[], setSize: (n:number)
   q.push({ fen, acceptedUci, createdAt: Date.now() });
   try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
   setSize(q.length);
-  logEvent('add_to_training', { fen4: fen4(fen), acceptedUci });
+  logEvent('add_to_training', { page: 'explore', fen4: fen4(fen), acceptedUci });
 }
 
 function getTrainingQueue(): Array<{ fen: string; acceptedUci: string[]; createdAt: number }> {
@@ -574,7 +576,7 @@ function onPreviewMoveInline(startUci: string, rootFen: string, index: Map<strin
       lineSAN.push(r.san || u);
     }
     setPreview({ active: true, baseFen: rootFen, line: lineSAN, startUci, idx: 0, playing: false });
-    logEvent('preview_click', { startUci, len: lineSAN.length });
+    logEvent('preview_click', { page: 'explore', startUci, len: lineSAN.length, fen4: fen4(rootFen) });
   } catch {}
 }
 
@@ -703,4 +705,10 @@ function sanToMove(fen: string, san: string): { from: string; to: string } | nul
     if (!res) return null;
     return { from: res.from, to: res.to } as any;
   } catch { return null; }
+}
+
+function formatInt(n: any): string {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return String(n ?? '0');
+  return v.toLocaleString();
 }
