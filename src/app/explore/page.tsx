@@ -9,6 +9,7 @@ import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import PreviewRoundedIcon from '@mui/icons-material/PreviewRounded';
 import AddTaskRoundedIcon from '@mui/icons-material/AddTaskRounded';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
 import SortRoundedIcon from '@mui/icons-material/SortRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import PauseRoundedIcon from '@mui/icons-material/PauseRounded';
@@ -33,6 +34,7 @@ export default function ExplorePage() {
   const [progress, setProgress] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
   const [fen, setFen] = useState<string>(() => game.fen());
+  const [fenError, setFenError] = useState<string | null>(null);
   const [index, setIndex] = useState<Map<Fen4, Node> | null>(null);
   const [fileKey, setFileKey] = useState<string>('lichess-4000.pgn');
   const [fromCache, setFromCache] = useState<string | null>(null);
@@ -217,7 +219,14 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
 
   // When fen input changes, try to set board
   const onApplyFen = useCallback(() => {
-    try { const d = new Chess(fen); setGame(d); } catch { /* ignore */ }
+    try {
+      const norm = normalizeFenInput(fen);
+      const d = new Chess(norm);
+      setGame(d);
+      setFenError(null);
+    } catch {
+      setFenError('Invalid FEN. Please paste a full 6-field FEN.');
+    }
   }, [fen, setGame]);
 
   const nodeAtFenWithFallback = useCallback((fenStr: string): { node: Node | null; fallback: { type: 'fen4'|'fen2'|'ancestor'|'none'; depth?: number } } => {
@@ -341,8 +350,20 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
             </Stack>
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
-            <TextField size="small" label="FEN" fullWidth value={fen} onChange={(e)=> setFen(e.target.value)} />
+            <TextField
+              size="small"
+              label="FEN (position code)"
+              placeholder="Paste a 6-field FEN, e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+              fullWidth
+              value={fen}
+              onChange={(e)=> setFen(e.target.value)}
+              onKeyDown={(e)=> { if (e.key === 'Enter') { e.preventDefault(); onApplyFen(); } }}
+              error={!!fenError}
+              helperText={fenError || 'Press Enter or click Apply. You can also use the example buttons.'}
+            />
+            <Tooltip title="What is FEN? A standardized 6-field code for chess positions."><span><IconButton size="small"><HelpOutlineOutlinedIcon fontSize='small' /></IconButton></span></Tooltip>
             <Button variant="outlined" onClick={onApplyFen}>Apply FEN</Button>
+            <Button size="small" onClick={()=> { try { const f = game.fen(); setFen(f); setFenError(null); } catch {} }}>Use Board</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-4000.pgn')}>4000</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(AUG)</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
@@ -711,4 +732,16 @@ function formatInt(n: any): string {
   const v = Number(n);
   if (!Number.isFinite(v)) return String(n ?? '0');
   return v.toLocaleString();
+}
+
+// Accepts full FEN; also accepts partial FEN (2 or 4 fields) by auto-filling the rest conservatively
+function normalizeFenInput(raw: string): string {
+  const s = (raw || '').trim().replace(/\s+/g, ' ');
+  const parts = s.split(' ');
+  if (parts.length >= 6) return parts.slice(0,6).join(' ');
+  if (parts.length === 4) return `${parts[0]} ${parts[1]} ${parts[2] || '-'} ${parts[3] || '-'} 0 1`;
+  if (parts.length === 2) return `${parts[0]} ${parts[1]} - - 0 1`;
+  // If only placement provided, assume white to move
+  if (parts.length === 1 && parts[0].includes('/')) return `${parts[0]} w - - 0 1`;
+  return s; // let chess.js validate and throw
 }
