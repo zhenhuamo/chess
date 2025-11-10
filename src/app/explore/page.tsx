@@ -20,12 +20,42 @@ export default function ExplorePage() {
   const [fen, setFen] = useState<string>(() => game.fen());
   const [index, setIndex] = useState<Map<Fen4, Node> | null>(null);
   const [fileKey, setFileKey] = useState<string>('lichess-4000.pgn');
+  const [fromCache, setFromCache] = useState<string | null>(null);
+
+  const STREAM_ENDPOINT = (process.env.NEXT_PUBLIC_EXPLORE_STREAM_ENDPOINT || '/api/explore/stream');
+  const versionTag = useCallback(() => `stream:${fileKey}:algo:v0:max16`, [fileKey]);
+
+  const loadCache = useCallback(async (version: string) => {
+    try {
+      const dbMod = await import('idb');
+      const openDB = (dbMod as any).openDB || (dbMod as any).default?.openDB;
+      const db = await openDB('explore', 1, { upgrade(db: any) { if (!db.objectStoreNames.contains('indexes')) db.createObjectStore('indexes', { keyPath: 'version' }); } });
+      const rec: any = await db.get('indexes', version);
+      if (rec?.data) return new Map<Fen4, Node>(rec.data);
+    } catch {}
+    return null;
+  }, []);
+
+  const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
+    try {
+      const dbMod = await import('idb');
+      const openDB = (dbMod as any).openDB || (dbMod as any).default?.openDB;
+      const db = await openDB('explore', 1, { upgrade(db: any) { if (!db.objectStoreNames.contains('indexes')) db.createObjectStore('indexes', { keyPath: 'version' }); } });
+      await db.put('indexes', { version, data: Array.from(map.entries()), savedAt: Date.now() });
+    } catch {}
+  }, []);
 
   // Build index from stream (MVP, whole-file text, limited depth and Top-N during UI rendering)
-  const buildIndex = useCallback(async () => {
+  const buildIndex = useCallback(async (force?: boolean) => {
     try {
-      setLoading(true); setErr(null); setProgress('Fetching PGN…');
-      const r = await fetch(`/api/explore/stream?file=${encodeURIComponent(fileKey)}`);
+      setLoading(true); setErr(null); setFromCache(null);
+      const ver = versionTag();
+      if (!force) {
+        const cached = await loadCache(ver);
+        if (cached) { setIndex(cached); setFromCache(ver); setProgress('Loaded from cache'); return; }
+      }
+      setProgress('Fetching PGN…');
+      const r = await fetch(`${STREAM_ENDPOINT}?file=${encodeURIComponent(fileKey)}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const text = await r.text();
       const games = splitPgn(text);
@@ -75,13 +105,14 @@ export default function ExplorePage() {
         if (i % 200 === 0) await new Promise(res => setTimeout(res, 0));
       }
       setIndex(map);
+      try { await saveCache(ver, map); } catch {}
       setProgress(`Done: ${processed} games.`);
     } catch (e: any) {
       setErr(e?.message || 'Failed to build index');
     } finally {
       setLoading(false);
     }
-  }, [fileKey]);
+  }, [fileKey, STREAM_ENDPOINT, versionTag, loadCache, saveCache]);
 
   useEffect(() => { buildIndex(); }, [buildIndex]);
 
@@ -92,8 +123,29 @@ export default function ExplorePage() {
 
   const topMoves = useMemo(() => {
     if (!index) return [] as Array<{ uci: string; games: number; win?: number; san: string }>;
-    const key = fen4(game.fen());
-    const node = index.get(key);
+    const f4 = fen4(game.fen());
+    let node = index.get(f4);
+    if (!node) {
+      const f2 = fen2(game.fen());
+      const agg: Node = { total: 0, moves: {} };
+      index.forEach((n, k) => {
+        if (k.startsWith(f2)) {
+          agg.total += n.total;
+          for (const [uci, ms] of Object.entries(n.moves)) {
+            const cur = agg.moves[uci] || { games: 0 };
+            cur.games += ms.games;
+            if (typeof ms.wrWhite === 'number') {
+              const cnt = (cur as any).wrWhite_n || 0; const prev = (cur.wrWhite || 0) * cnt; const nextCnt = cnt + 1; (cur as any).wrWhite_n = nextCnt; cur.wrWhite = (prev + ms.wrWhite) / nextCnt;
+            }
+            if (typeof ms.wrBlack === 'number') {
+              const cnt = (cur as any).wrBlack_n || 0; const prev = (cur.wrBlack || 0) * cnt; const nextCnt = cnt + 1; (cur as any).wrBlack_n = nextCnt; cur.wrBlack = (prev + ms.wrBlack) / nextCnt;
+            }
+            agg.moves[uci] = cur;
+          }
+        }
+      });
+      node = agg.total > 0 ? agg : undefined as any;
+    }
     if (!node) return [];
     const side = game.turn();
     const entries = Object.entries(node.moves).map(([uci, ms]) => {
@@ -120,11 +172,13 @@ export default function ExplorePage() {
             <Button size="small" onClick={()=> setFileKey('lichess-4000.pgn')}>4000</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2025-08-2000.pgn')}>2000(Aug)</Button>
             <Button size="small" onClick={()=> setFileKey('lichess-2000.pgn')}>2000</Button>
+            <Button size="small" variant="outlined" onClick={()=> buildIndex(true)}>Rebuild</Button>
           </Stack>
 
           {loading && (
             <Box sx={{ display:'flex', alignItems:'center', gap:1 }}><CircularProgress size={18} /> <Typography variant="body2">{progress}</Typography></Box>
           )}
+          {fromCache && (<Typography variant="caption" color="text.secondary">Loaded from cache · {fromCache}</Typography>)}
           {err && (<Typography color="error">{err}</Typography>)}
 
           <Divider />
@@ -177,6 +231,7 @@ function splitPgn(text: string): string[] {
 }
 
 function fen4(fen: string): string { return fen.split(' ').slice(0,4).join(' '); }
+function fen2(fen: string): string { return fen.split(' ').slice(0,2).join(' '); }
 
 function extractResult(pgn: string): { white: number; black: number } | null {
   const m = pgn.match(/\n\[Result\s+"([^"]+)"\]/);

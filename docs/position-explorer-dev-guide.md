@@ -5,6 +5,21 @@
 - 范围（v1）：纯前端（Next 静态导出 + Cloudflare Pages）。数据来自“预构建索引 JSON（v2）”，或在浏览器用 Web Worker 在线聚合作为降级。无需服务端引擎。
 - 非目标（v1）：不做全量全文检索；不做重型服务端引擎；不做账号/云同步（仅本地）。
 
+当前进度（2025-11-10）
+- 已完成
+  - 页面与导航：新增独立页 `/explore`，左侧导航加入 Explore；在 `/analyze` 右下角提供 “Explore this position” 深链。
+  - R2 流代理：实现 `/api/explore/stream?file=…`（仅白名单三份 PGN），同域拉取 R2 数据（no-store）。
+  - MVP 功能：FEN 输入与应用、基于 R2 流的在线聚合（限深 ~16 plies，Top‑N 前端裁剪）、进度提示、Top Moves 基础渲染、棋盘稳定渲染（修复 Board 默认 atom 的 update depth 问题、稳定化玩家对象）。
+- 已就绪（占位/待接通）
+  - `/api/explore/manifest` 与 `/api/explore/index` 代理端点占位（当前返回 404，前端会回退到 stream 模式）。待在 R2 投放 `explore/manifest.json` 与 `explore/index/v2/*.json.gz` 即可接通。
+- 待办（下一步优先）
+  1) Worker + IndexedDB 缓存（首次构建后下次秒开）
+  2) 无数据回退（fen4→fen2→回退 1–4 plies，UI 标注）
+  3) 预构建索引脚本（Node）与 R2 发布流程（manifest/index）
+  4) MiniBook、Model Games、TrapCards、Practice Now、Add to Training
+  5) 观测/开关与小型 A/B（低优先）
+
+
 用户目标与场景
 - 即使没有自己的对局，也能学习一个位置：“大家在这里都走什么？哪步更好？有没有套路/陷阱？”
 - 用数据做选择：“把下一步按胜率/热度排序，并能在棋盘上立即演练/预览。”
@@ -151,7 +166,18 @@ UI/UX
 - 集成：加载 v2 JSON、渲染 Top Moves、动作接入棋盘与 /train。
 - 端到端（wrangler）：深链 URL 正确定位；回退生效；移动端布局烟雾测试。
 
-里程碑与任务
+里程碑与任务（状态）
+- M1（2–3 天）
+  - [未完成] scripts/build-explore-index.ts（Node）与 R2 发布（manifest/index）。
+  - [已部分完成] /explore 基础：Filters（FEN 输入/应用✓，其余筛选待做）、TopMoves（✓）、ModelGames（未做）、Play/Preview（未接动作）。
+  - [已完成] 导航与深链：左侧 Explore 入口、/analyze → /explore 深链。
+  - 目标：首屏 < 2s（依赖索引 JSON 快路径），当前 stream 模式已可用（首次需等待构建）。
+- M2（2 天）
+  - [未完成] MiniBook（8–12 plies）、Add to Training、Practice Now（5 题）→ /train。
+  - 目标：生成练习 ≤ 1s；交互流畅。
+- M3（2 天）
+  - [未完成] TrapCards（启发式）、无数据回退与提示（部分在待办 2）、Learn → Explore 导航文案优化。
+  - 目标：常见开局能出现 1–3 个陷阱卡片；回退逻辑稳定。
 - M1（2–3 天）
   - 实现 scripts/build-explore-index.ts，产出 global.curated.v2.json（16–20 plies、Top‑5）。
   - 实现 /explore：Filters + TopMoves + ModelGames；接通 Play/Preview。
