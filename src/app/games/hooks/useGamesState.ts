@@ -74,7 +74,7 @@ export const startParsingAtom = atom(
     set(parseProgressAtom, { current: 0, total: 10000, done: false });
 
     const file = get(currentFileAtom);
-    const fileUrl = `/api/games/stream?file=${encodeURIComponent(file)}`;
+    const fileUrl = `/api/explore/stream?file=${encodeURIComponent(file)}`;
 
     // 设置 Worker 消息处理
     worker.onmessage = (event) => {
