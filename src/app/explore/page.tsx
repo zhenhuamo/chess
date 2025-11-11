@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert, Slider, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Paper, Stack, TextField, Typography, ToggleButton, ToggleButtonGroup, IconButton, Tooltip, Chip, Alert, Slider, Accordion, AccordionSummary, AccordionDetails, Snackbar } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Chess } from "chess.js";
 import { atom, useAtom } from "jotai";
@@ -48,6 +48,9 @@ export default function ExplorePage() {
   const [preview, setPreview] = useState<{ active: boolean; baseFen?: string; line?: string[]; startUci?: string; idx?: number; playing?: boolean }>({ active: false });
   const [fallbackInfo, setFallbackInfo] = useState<{ type: 'fen4'|'fen2'|'ancestor'|'none'; depth?: number }>({ type: 'none' });
   const [trainingQueueSize, setTrainingQueueSize] = useState<number>(() => getTrainingQueue().length);
+  const [snack, setSnack] = useState<{ open: boolean; message: string; action?: React.ReactNode }>(() => ({ open: false, message: '' }));
+  const [practiceBusy, setPracticeBusy] = useState(false);
+  const [practiceCount, setPracticeCount] = useState<number>(5);
 
   // Resolve stream endpoint once (env or default). Keep outside of dependencies to avoid re-decl errors.
   const STREAM_ENDPOINT = useMemo(() => (process.env.NEXT_PUBLIC_EXPLORE_STREAM_ENDPOINT || '/api/explore/stream'), []);
@@ -294,13 +297,13 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
 
   const eventCtx = useCallback(() => ({ fen4: fen4(game.fen()), source: indexSource, sortKey, fallback: fallbackInfo?.type, fallbackDepth: fallbackInfo?.depth, queueSize: getTrainingQueue().length }), [game, indexSource, sortKey, fallbackInfo]);
 
-  const onPracticeNow = useCallback(() => {
-    if (!index) return;
+  const onPracticeNow = useCallback((count: number): number => {
+    if (!index) return 0;
     try {
-      const pv = buildGreedyPv(game.fen(), index, 10);
+      const pv = buildGreedyPv(game.fen(), index, Math.max(1, Math.min(50, count)));
       const tasks: Array<{ fen: string; acceptedUci: string[]; createdAt: number }> = [];
       let d = new Chess(game.fen());
-      for (let i = 0; i < pv.length && tasks.length < 5; i++) {
+      for (let i = 0; i < pv.length && tasks.length < count; i++) {
         const uci = pv[i];
         if (!uci) break;
         // Only create tasks on the plies where it's the current side to move
@@ -313,21 +316,39 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
         try { localStorage.setItem('explore:trainingQueue', JSON.stringify(q)); } catch {}
         setTrainingQueueSize(q.length);
         logEvent('practice_now', { page: 'explore', ...eventCtx(), add: tasks.length, after: q.length });
+        return tasks.length;
       }
     } catch (e) { console.warn('[PracticeNow] failed', e); }
+    return 0;
   }, [index, game, eventCtx]);
 
   const onStartPractice = useCallback(() => {
     try {
       const q = getTrainingQueue();
-      if (!q.length) { onPracticeNow(); return; }
+      if (!q.length) { onPracticeNow(practiceCount); return; }
       const first = q[0];
       const payload = { fen: first.fen, acceptedUci: first.acceptedUci, attempts: 3 };
       localStorage.setItem('analyze:startup', JSON.stringify(payload));
       logEvent('practice_start', { page: 'explore', ...eventCtx(), queue: q.length });
       location.href = '/analyze';
     } catch (e) { console.warn('[StartPractice] failed', e); }
-  }, [onPracticeNow, eventCtx]);
+  }, [onPracticeNow, eventCtx, practiceCount]);
+
+  const removeLastFromQueue = useCallback((n: number): number => {
+    try {
+      const q = getTrainingQueue();
+      if (!Array.isArray(q) || q.length === 0) return 0;
+      const remove = Math.min(Math.max(1, n), q.length);
+      q.splice(q.length - remove, remove);
+      localStorage.setItem('explore:trainingQueue', JSON.stringify(q));
+      setTrainingQueueSize(q.length);
+      return remove;
+    } catch { return 0; }
+  }, []);
+
+  const showSnack = useCallback((message: string, action?: React.ReactNode) => {
+    setSnack({ open: true, message, action });
+  }, []);
 
   // Stable player objects (avoid re-creating each render to prevent Board effects from looping)
   const whitePlayer = useMemo(() => ({ name: 'White' }), []);
@@ -487,19 +508,35 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
               </Button>
             </Stack>
 
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1.5}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
             >
               <Button
                 fullWidth
                 size="large"
                 variant="contained"
-                color="secondary"
-                onClick={onPracticeNow}
+                color="success"
+                onClick={() => {
+                  if (practiceBusy) return;
+                  setPracticeBusy(true);
+                  const added = onPracticeNow(practiceCount) || 0;
+                  setPracticeBusy(false);
+                  if (added > 0) {
+                    showSnack(`Added ${added} drill${added>1?'s':''} to training queue`, (
+                      <Stack direction="row" spacing={1}>
+                        <Button size="small" color="inherit" onClick={onStartPractice}>Start Now</Button>
+                        <Button size="small" color="inherit" onClick={()=> location.href='/train'}>View Queue</Button>
+                        <Button size="small" color="inherit" onClick={()=> { const r = removeLastFromQueue(added); showSnack(r>0?`Undid ${r} drill${r>1?'s':''}`:'Nothing to undo'); }}>Undo</Button>
+                      </Stack>
+                    ));
+                  } else {
+                    showSnack('No drills were generated for this position. Try a different position.');
+                  }
+                }}
                 startIcon={<AddTaskRoundedIcon />}
               >
-                Practice Now (5)
+                {practiceBusy ? 'Working…' : `Practice Now (${practiceCount})`}
               </Button>
               <Button
                 fullWidth
@@ -510,6 +547,17 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
               >
                 Start Practice
               </Button>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={String(practiceCount)}
+                onChange={(_, v)=> v && setPracticeCount(Number(v))}
+                sx={{ alignSelf: { xs: 'stretch', sm: 'center' } }}
+              >
+                <ToggleButton value="5">5</ToggleButton>
+                <ToggleButton value="10">10</ToggleButton>
+                <ToggleButton value="20">20</ToggleButton>
+              </ToggleButtonGroup>
             </Stack>
           </Stack>
 
@@ -699,7 +747,13 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
                             <Tooltip title="Add to Training">
                               <IconButton
                                 size="small"
-                                onClick={()=> onAddToTraining(game.fen(), [m.uci], setTrainingQueueSize)}
+                                onClick={()=> { onAddToTraining(game.fen(), [m.uci], setTrainingQueueSize); showSnack('Added 1 drill to training queue', (
+                                  <Stack direction='row' spacing={1}>
+                                    <Button size='small' color='inherit' onClick={onStartPractice}>Start</Button>
+                                    <Button size='small' color='inherit' onClick={()=> location.href='/train'}>View</Button>
+                                    <Button size='small' color='inherit' onClick={()=> { const r = removeLastFromQueue(1); showSnack(r>0?'Undid 1 drill':'Nothing to undo'); }}>Undo</Button>
+                                  </Stack>
+                                )); }}
                               >
                                 <AddTaskRoundedIcon fontSize='small' />
                               </IconButton>
@@ -1410,6 +1464,14 @@ const saveCache = useCallback(async (version: string, map: Map<Fen4, Node>) => {
           </Stack>
         </Paper>
       </Box>
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        message={snack.message}
+        action={snack.action}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 }

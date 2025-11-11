@@ -8,6 +8,21 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-11',
+    version: 'v2.2.0',
+    title: 'Position Explorer: Landing, Preview Controls, Training UX, SEO',
+    items: [
+      'New landing under /explore: clear intro, Quick Start, How‑to, Practice flow, Coverage & FAQ. Dark theme surfaces without white blocks.',
+      'Top Moves list refined: dark cards, better hover; still supports Hot/Win% sorting and Play/Preview/Add actions.',
+      'Preview mode upgraded: ▶/⏮/⏭/↻ controls, progress slider, and on‑board “next move” arrow; Enter applies, Esc closes.',
+      'FEN input UX: Enter to apply, error hint for invalid FEN, “Use Current Board”, and tolerant partial FEN (auto‑fill).',
+      'Training feedback: Add to Training and Practice Now show snackbars with Start/View actions; Practice Now has Undo and selectable count (5/10/20).',
+      'Practice bridge: Start Practice jumps to /analyze retry mode; correct answers auto‑advance through the queue.',
+      'Data fallback clarity: fen4→fen2→ancestor (≤4 plies) with explicit hints; low‑data positions no longer ambiguous.',
+      'SEO: route‑level metadata for /explore (title/description/keywords/OG/Twitter). Added on‑page FAQ accordion.',
+    ],
+  },
+  {
     date: '2025-11-08',
     version: 'v2.1.0',
     title: 'Share/Embed UX: Popover, Deep-Link Ply, Configurable Embed, OG Highlight',
