@@ -9,6 +9,8 @@ const ALLOW_LIST: Record<string, string> = {
   "lichess-2000.pgn": "https://cacle.chess-analysis.org/chess-png/lichess-2000.pgn",
 };
 
+export const dynamic = "force-static";
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,9 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     const target = ALLOW_LIST[file];
-    const response = await fetch(target, {
-      cf: { cacheTtl: 0, cacheEverything: false } as any,
-    });
+    const response = await fetch(target);
 
     if (!response.ok || !response.body) {
       return NextResponse.json(

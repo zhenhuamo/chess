@@ -328,6 +328,7 @@ Transfer-Encoding: chunked
 - [x] 修复构建错误（重复导出、MUI API 变更、Box props）✅ 2025-01-15
 - [x] 修复漏掉的 Grid API 调用 ✅ 2025-01-15
 - [x] 修复 PgnHeaders 中重复的 Site 字段 ✅ 2025-01-15
+- [x] 创建 /api/games/stream API 路由 ✅ 2025-01-15
 - [x] **M1 MVP 完成！所有核心组件已实现** ✅ 2025-01-15
 - [ ] 测试和集成 (下一步)
 - [ ] 基础埋点 (优化阶段添加)
