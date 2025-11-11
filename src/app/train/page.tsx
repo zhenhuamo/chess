@@ -26,13 +26,13 @@ export default function TrainPage() {
       <Paper variant="outlined" sx={{ p: { xs: 1, md: 2 }, width: '100%', maxWidth: 1000 }}>
         <Stack spacing={1}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Practice</Typography>
-          <Typography variant="body2" color="text.secondary">来自 /explore 的题目队列（本地）</Typography>
+          <Typography variant="body2" color="text.secondary">Practice queue from /explore (stored locally)</Typography>
           <Stack direction="row" spacing={1}>
             <Button variant="contained" onClick={onStart} disabled={!tasks.length}>Start</Button>
             <Button onClick={onClear} disabled={!tasks.length}>Clear</Button>
           </Stack>
           {!tasks.length && (
-            <Typography variant="body2" color="text.secondary">暂无题目。请前往 /explore，点击“Practice Now (5)”加入题目。</Typography>
+            <Typography variant="body2" color="text.secondary">No drills yet. Go to /explore and click “Practice Now” to add drills.</Typography>
           )}
           {!!tasks.length && (
             <Stack spacing={0.5}>
@@ -49,4 +49,3 @@ export default function TrainPage() {
     </Box>
   );
 }
-
