@@ -15,6 +15,7 @@ pages_build_output_dir = "out"
 # Minimal env: serve engines from same-origin proxy and force remote assets
 NEXT_PUBLIC_ENGINE_BASE_URL = "/engines/"
 NEXT_PUBLIC_ENGINE_REMOTE_ONLY = "1"
+EXPL_MANIFEST_URL = "https://cacle.chess-analysis.org/games/games-manifest.json"
 
 [[r2_buckets]]
 binding = "SHARE"

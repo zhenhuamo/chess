@@ -1,5 +1,5 @@
 import { atom, useAtom } from "jotai";
-import { GameSummary, GamesFilter, ParseProgress } from "../types/game";
+import { GameSummary, GamesFilter, GamesManifest, ParseProgress } from "../types/game";
 
 /**
  * Games Feed 全局状态管理
@@ -84,7 +84,7 @@ export const hasMoreGamesAtom = atom((get) => {
 // 开始解析对局
 export const startParsingAtom = atom(
   null,
-  (get, set, worker: Worker) => {
+  async (get, set, worker: Worker) => {
     // 如果已经在解析中，不重复开始
     if (get(isParsingAtom)) return;
 
@@ -96,11 +96,33 @@ export const startParsingAtom = atom(
 
     const file = get(currentFileAtom);
     // In production we are a static export on Cloudflare Pages, so Next.js app
-    // route handlers under /api are not available. We proxy R2 PGN files via a
-    // Cloudflare Pages Function mounted at /api/explore. In local dev, we keep
-    // using the Next.js route handler under /api/games to avoid breaking DX.
+    // route handlers under /api are not available. We proxy R2 assets via
+    // Cloudflare Pages Functions mounted at /api/explore. In local dev, we keep
+    // using Next.js route handlers under /api/games to avoid breaking DX.
     const apiBase = process.env.NODE_ENV === 'production' ? '/api/explore' : '/api/games';
     const fileUrl = `${apiBase}/stream?file=${encodeURIComponent(file)}`;
+
+    // Fast path (v2): try manifest first; fallback to streaming worker.
+    // Manifest is proxied at /api/explore/manifest in production. If unavailable
+    // (404/5xx), we silently fall back to the streaming parser.
+    try {
+      const manifestResp = await fetch('/api/explore/manifest', { cache: 'reload' });
+      if (manifestResp.ok) {
+        const manifest = (await manifestResp.json()) as GamesManifest;
+        if (manifest?.version === 'v2' && Array.isArray(manifest.games)) {
+          const list = manifest.games.filter(g => !g.file || g.file === file);
+          if (list.length > 0) {
+            // Use prebuilt summaries; no need to start the worker.
+            set(rawGamesAtom, list as GameSummary[]);
+            set(parseProgressAtom, { current: list.length, total: list.length, done: true });
+            set(isParsingAtom, false);
+            return; // early exit – manifest served our data
+          }
+        }
+      }
+    } catch {
+      // ignore and fall back to worker
+    }
 
     // 设置 Worker 消息处理
     worker.onmessage = (event) => {
