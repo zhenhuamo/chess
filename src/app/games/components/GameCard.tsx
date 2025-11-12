@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Box, Card, CardContent, Chip, IconButton, Typography, Button } from "@mui/material";
+import { Box, Card, CardContent, Chip, IconButton, Typography, Button, Divider } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { GameSummary } from "../types/game";
 import { openInAnalyzer, copyPgn, shareGame } from "../api/games-api";
+import GameBoardPreview from "./GameBoardPreview";
 
 interface GameCardProps {
   game: GameSummary;
@@ -114,6 +115,11 @@ export const GameCard: React.FC<GameCardProps> = ({ game }) => {
         },
       }}
     >
+      {/* 棋盘快照 */}
+      <GameBoardPreview game={game} />
+
+      <Divider sx={{ my: 1 }} />
+
       {/* 顶部：玩家信息和结果 */}
       <Box sx={{ p: 2, pb: 1 }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>

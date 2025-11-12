@@ -1,7 +1,7 @@
 import { GameSummary } from "../types/game";
 
 /**
- * PGN 解析 Worker
+ * PGN 解析 Worker - 修复版
  * 功能：流式读取 PGN 文本并提取对局头信息
  */
 
@@ -14,20 +14,6 @@ const ESTIMATED_GAMES: Record<string, number> = {
   "lichess-2025-08-2000.pgn": 10000,
   "lichess-2000.pgn": 50000,
 };
-
-// 解析会话内的已见 ID，避免重复 key 影响 React 渲染
-const seenIds = new Set<string>();
-const dupSeq: Record<string, number> = {};
-
-// 安全 base64（兼容非 ASCII 字符）
-function toB64Safe(input: string): string {
-  try {
-    return btoa(unescape(encodeURIComponent(input)));
-  } catch {
-    // 兜底：去除不可见字符后再尝试
-    return btoa(unescape(encodeURIComponent(input.replace(/[\u0000-\u001F]/g, ""))));
-  }
-}
 
 /**
  * 解析 PGN 头信息
@@ -56,37 +42,11 @@ function extractGameSummary(
   headers: Record<string, string>,
   fileName: string
 ): GameSummary {
-  // 生成更加稳定且几乎唯一的 ID
-  // 优先使用 lichess 的对局 URL（Site 字段），从中提取唯一 slug
-  const site = headers.Site || "";
-  const slugMatch = site.match(/lichess\.org\/([A-Za-z0-9]+)/);
-
-  let id = slugMatch?.[1] || site;
-
-  if (!id) {
-    // 无 Site 时，用更丰富的头字段构建指纹，不再截断
-    const finger = {
-      W: headers.White || "",
-      B: headers.Black || "",
-      Date: headers.Date || "",
-      UTCDate: headers.UTCDate || "",
-      UTCTime: headers.UTCTime || "",
-      Round: headers.Round || "",
-      Event: headers.Event || "",
-      Result: headers.Result || "",
-      TC: headers.TimeControl || "",
-      ECO: headers.ECO || "",
-      Opening: headers.Opening || "",
-    };
-    id = toB64Safe(JSON.stringify(finger));
-  }
-
-  // 会话内去重，确保 React key 唯一
-  if (seenIds.has(id)) {
-    dupSeq[id] = (dupSeq[id] || 0) + 1;
-    id = `${id}-${dupSeq[id]}`;
-  }
-  seenIds.add(id);
+  // 生成 ID（简单的 hash，v2 会使用更稳定的 SHA-256）
+  const idData = `${headers.White || ""}|${headers.Black || ""}|${
+    headers.Date || ""
+  }|${headers.Result || ""}`;
+  const id = btoa(idData).slice(0, 12);
 
   // 提取手数（从 Result 推断，如果没有则设为 0）
   let moves = 0;
@@ -119,7 +79,7 @@ function extractGameSummary(
 }
 
 /**
- * 主解析函数
+ * 主解析函数 - 修复版本
  */
 async function parsePgnStream(
   stream: ReadableStream<Uint8Array>,
@@ -129,43 +89,10 @@ async function parsePgnStream(
   const decoder = new TextDecoder();
 
   let buffer = "";
-  let currentHeaderText = ""; // collected PGN header lines for the current game
-  let isReadingHeaders = false; // true while we are inside the header section
+  let currentHeaderText = "";
+  let isReadingHeaders = false;
   const games: GameSummary[] = [];
   let totalGames = 0;
-
-  // Flush the current collected header as a GameSummary if any
-  const flushCurrentGame = () => {
-    if (!currentHeaderText) return;
-    const headers = parsePgnHeaders(currentHeaderText);
-    const game = extractGameSummary(headers, fileName);
-    games.push(game);
-    totalGames++;
-
-    // clear header buffer/state
-    currentHeaderText = "";
-    isReadingHeaders = false;
-
-    // Send batched updates
-    if (games.length >= BATCH_SIZE) {
-      self.postMessage({
-        type: "batch",
-        games: [...games],
-      });
-      games.length = 0;
-    }
-
-    // Progress is an estimate until complete
-    const estimatedTotal = ESTIMATED_GAMES[fileName] || 10000;
-    self.postMessage({
-      type: "progress",
-      progress: {
-        current: totalGames,
-        total: estimatedTotal,
-        done: false,
-      },
-    });
-  };
 
   try {
     while (true) {
@@ -185,48 +112,76 @@ async function parsePgnStream(
 
         // 如果遇到 [Event，说明是新对局的开始
         if (trimmedLine.startsWith("[Event ")) {
-          // On a new Event header, flush the previous header if we had one
-          if (currentHeaderText) {
-            flushCurrentGame();
+          // 如果之前已经读取了头信息，先处理之前的对局
+          if (isReadingHeaders && currentHeaderText) {
+            const headers = parsePgnHeaders(currentHeaderText);
+            const game = extractGameSummary(headers, fileName);
+            games.push(game);
+            totalGames++;
+
+            // 每 BATCH_SIZE 局发送一次
+            if (games.length >= BATCH_SIZE) {
+              self.postMessage({
+                type: "batch",
+                games: [...games],
+              });
+              games.length = 0;
+            }
+
+            // 发送进度
+            const estimatedTotal = ESTIMATED_GAMES[fileName] || 10000;
+            self.postMessage({
+              type: "progress",
+              progress: {
+                current: totalGames,
+                total: estimatedTotal,
+                done: false,
+              },
+            });
           }
 
-          // Start collecting headers for the next game
+          // 开始新对局
           currentHeaderText = trimmedLine + "\n";
           isReadingHeaders = true;
-        }
-        // 如果是头信息行（以 [ 开头）
-        else if (isReadingHeaders && trimmedLine.startsWith("[")) {
+        } else if (isReadingHeaders && trimmedLine.startsWith("[")) {
+          // 如果是头信息行（以 [ 开头）
           currentHeaderText += trimmedLine + "\n";
+        } else if (isReadingHeaders && trimmedLine === "") {
+          // 如果遇到空行，说明头信息结束
+          isReadingHeaders = false;
         }
-        // 如果遇到空行，说明头信息结束
-        else if (isReadingHeaders && trimmedLine === "") {
-          // Header section ended; we have enough info to emit a summary
-          flushCurrentGame();
-        }
+        // 其他行（走法）我们忽略，因为我们只解析头信息
       }
     }
 
-    // 处理最后一个对局
-    flushCurrentGame();
+    // 循环结束后，处理最后一个对局（如果存在）
+    if (isReadingHeaders && currentHeaderText) {
+      const headers = parsePgnHeaders(currentHeaderText);
+      const game = extractGameSummary(headers, fileName);
+      games.push(game);
+      totalGames++;
+    }
 
-    // 发送剩余的批次
+    // 发送剩余的游戏
     if (games.length > 0) {
       self.postMessage({
         type: "batch",
-        games,
+        games: [...games],
       });
     }
 
     // 发送完成消息
+    const estimatedTotal = ESTIMATED_GAMES[fileName] || totalGames || 10000;
     self.postMessage({
       type: "complete",
       progress: {
         current: totalGames,
-        total: totalGames,
+        total: estimatedTotal,
         done: true,
       },
     });
   } catch (error) {
+    console.error("[Worker] Parse error:", error);
     self.postMessage({
       type: "error",
       error: error instanceof Error ? error.message : "Unknown error",
@@ -244,6 +199,7 @@ self.onmessage = async (event) => {
 
   if (type === "parse") {
     try {
+      console.log(`[Worker] Starting to fetch: ${fileUrl}`);
       // 获取文件流
       const response = await fetch(fileUrl);
       if (!response.ok) {
@@ -254,17 +210,19 @@ self.onmessage = async (event) => {
         throw new Error("Response body is null");
       }
 
+      console.log("[Worker] File fetched successfully, starting parse...");
       // 开始解析
       await parsePgnStream(response.body, fileName);
+      console.log("[Worker] Parse completed");
     } catch (error) {
+      console.error("[Worker] Error:", error);
       self.postMessage({
         type: "error",
         error: error instanceof Error ? error.message : "Unknown error",
       });
     }
   } else if (type === "stop") {
-    // 停止解析（实现中）
-    // 注意：ReadableStream 取消需要更好的控制
+    console.log("[Worker] Stopping parse");
     self.postMessage({
       type: "complete",
       progress: {

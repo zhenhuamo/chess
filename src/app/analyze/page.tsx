@@ -81,8 +81,10 @@ function GameAnalysisInner() {
         try { g.loadPgn(rec.pgn); } catch {}
         if (!cancelled) {
           setGame(g);
+          // 同步左侧棋盘到整局的当前局面（最后一步之后）
+          // 这样进入页面时就不是起始位，避免“只有10步/起始位”的困惑
+          setBoard(g);
           setGameMeta({ playerSide: rec.playerSide, origin: rec.origin, engineVariant: rec.engineVariant });
-          // Board reset is handled by LoadGame component based on game headers (FEN if present)
         }
       } catch {}
     })();

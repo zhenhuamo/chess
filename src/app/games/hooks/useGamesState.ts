@@ -53,6 +53,27 @@ export const filteredGamesAtom = atom((get) => {
   });
 });
 
+// 分页：当前页（1-based）与每页数量
+export const pageAtom = atom<number>(1);
+export const pageSizeAtom = atom<number>(24);
+
+// 分页：总数量与总页数
+export const totalGamesCountAtom = atom((get) => get(filteredGamesAtom).length);
+export const totalPagesAtom = atom((get) => {
+  const total = get(totalGamesCountAtom);
+  const size = get(pageSizeAtom) || 1;
+  return total > 0 ? Math.ceil(total / size) : 0;
+});
+
+// 分页：当前页的切片
+export const pagedGamesAtom = atom((get) => {
+  const list = get(filteredGamesAtom);
+  const page = Math.max(1, get(pageAtom));
+  const size = Math.max(1, get(pageSizeAtom));
+  const start = (page - 1) * size;
+  return list.slice(start, start + size);
+});
+
 // 派生状态：是否还有更多对局（用于无限滚动）
 export const hasMoreGamesAtom = atom((get) => {
   const progress = get(parseProgressAtom);
@@ -74,11 +95,20 @@ export const startParsingAtom = atom(
     set(parseProgressAtom, { current: 0, total: 10000, done: false });
 
     const file = get(currentFileAtom);
-    const fileUrl = `/api/explore/stream?file=${encodeURIComponent(file)}`;
+    const fileUrl = `/api/games/stream?file=${encodeURIComponent(file)}`;
 
     // 设置 Worker 消息处理
     worker.onmessage = (event) => {
       const { type, games, progress, error } = event.data;
+      // Debug logs to help verify streaming parser behavior
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.log("[games/worker] message", type, {
+          batch: games?.length,
+          progress,
+          error,
+        });
+      }
 
       switch (type) {
         case "batch":
@@ -140,7 +170,11 @@ export const resetGamesAtom = atom(null, (get, set) => {
 export function useGamesState() {
   const [currentFile, setCurrentFile] = useAtom(currentFileAtom);
   const [filter, setFilter] = useAtom(gamesFilterAtom);
-  const [games] = useAtom(filteredGamesAtom);
+  const [games] = useAtom(pagedGamesAtom);
+  const [totalGames] = useAtom(totalGamesCountAtom);
+  const [totalPages] = useAtom(totalPagesAtom);
+  const [page, setPage] = useAtom(pageAtom);
+  const [pageSize, setPageSize] = useAtom(pageSizeAtom);
   const [isParsing] = useAtom(isParsingAtom);
   const [progress] = useAtom(parseProgressAtom);
   const [error] = useAtom(parseErrorAtom);
@@ -156,6 +190,12 @@ export function useGamesState() {
     filter,
     setFilter,
     games,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalGames,
+    totalPages,
     isParsing,
     progress,
     error,

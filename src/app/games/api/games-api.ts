@@ -1,4 +1,7 @@
 import { GameSummary } from "../types/game";
+import { Chess } from "chess.js";
+import { openDB } from "idb";
+import { formatGameToDatabase, setGameHeaders } from "@/src/lib/chess";
 
 /**
  * Games API 客户端
@@ -32,24 +35,36 @@ export async function streamGames(
  */
 export async function openInAnalyzer(game: GameSummary): Promise<string> {
   try {
-    // v1: 直接从 share 接口获取（简化的方式）
-    // v2: 使用 offset/length 从 R2 获取
+    // 直接写入 IndexedDB，返回 /analyze?gameId=<numericId>
     const pgn = await fetchGamePgn(game);
 
-    // 保存到 /api/g（获取分享 ID）
-    const response = await fetch("/api/g", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const chess = new Chess();
+    const ok = (() => { try { return chess.loadPgn(pgn); } catch { return false; } })();
+    // 补齐/规范化头信息（避免缺省导致 UI 信息缺失）
+    try {
+      setGameHeaders(chess, {
+        white: { name: game.white, rating: game.whiteElo },
+        black: { name: game.black, rating: game.blackElo },
+      });
+    } catch {}
+
+    const db = await openDB("games", 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains("games")) {
+          db.createObjectStore("games", { keyPath: "id", autoIncrement: true });
+        }
       },
-      body: JSON.stringify({ pgn }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to save game: ${response.statusText}`);
-    }
+    const rec: any = {
+      ...(formatGameToDatabase(chess) as any),
+      pgn, // 保留原始 PGN 文本，避免二次格式化丢失内容
+      playerSide: "w",
+      origin: "games",
+      engineVariant: "sf17-lite",
+    };
 
-    const { id } = await response.json();
+    const id = (await db.add("games", rec)) as unknown as number;
 
     return `/analyze?gameId=${id}`;
   } catch (error) {
@@ -64,21 +79,22 @@ export async function openInAnalyzer(game: GameSummary): Promise<string> {
  * v2: 使用 file + offset + length 从 R2 获取
  */
 export async function fetchGamePgn(game: GameSummary): Promise<string> {
-  // v1 简化实现：使用 share ID 获取（需要先有 share ID）
-  // 在实际场景中，你可能需要：
-  // 1. 如果已有 shareUrl，直接提取 ID
-  // 2. 如果没有，调用 /api/g 创建
-  // 3. 或者 v2 方案：从 R2 读取指定范围
-
-  // 这里简化：调用 /api/g 创建分享，然后返回 PGN
-  // 注意：这会导致两次网络请求，v2 应该优化
-
-  // 临时方案：返回一个简单的 PGN（仅用于测试）
-  // 实际应该调用 /api/g/[id] 获取完整 PGN
-
-  // TODO: 实际实现
-  const tempPgn = createTempPgn(game);
-  return tempPgn;
+  // 首选：从 lichess 对局号导出（本域代理，避免跨域）
+  if (game.site) {
+    const m = game.site.match(/lichess\.org\/([A-Za-z0-9]+)/);
+    const id = m?.[1];
+    if (id) {
+      try {
+        const res = await fetch(`/api/games/pgn?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+        if (res.ok) {
+          const text = await res.text();
+          if (text && /\n\n/.test(text)) return text;
+        }
+      } catch {}
+    }
+  }
+  // 兜底：用头信息构造极简 PGN（无走法），以保证分析页至少可打开
+  return createTempHeadersOnlyPgn(game);
 }
 
 /**
@@ -123,7 +139,7 @@ export async function copyPgn(game: GameSummary): Promise<string> {
  * 创建临时 PGN（仅用于测试和演示）
  * TODO: 替换为实际从数据库/R2 获取的逻辑
  */
-function createTempPgn(game: GameSummary): string {
+function createTempHeadersOnlyPgn(game: GameSummary): string {
   const headers = [
     `[Event "?"]`,
     `[Site "${game.site || "?"}"]`,
@@ -140,12 +156,7 @@ function createTempPgn(game: GameSummary): string {
   ]
     .filter(Boolean)
     .join("\n");
-
-  // 临时走法（简化）
-  const moves =
-    "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7";
-
-  return `${headers}\n\n${moves} ${game.result}\n`;
+  return `${headers}\n\n*\n`;
 }
 
 /**

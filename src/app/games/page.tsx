@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Typography, Container, Grid, Alert, AlertTitle } from "@mui/material";
+import { Box, Typography, Container, Grid, Alert, AlertTitle, Pagination, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useGamesState } from "./hooks/useGamesState";
 import GameCard from "./components/GameCard";
@@ -17,6 +17,14 @@ export default function GamesPage() {
     error,
     currentFile,
     startParsing,
+    stopParsing,
+    reset,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalGames,
+    totalPages,
   } = useGamesState();
 
   const workerRef = useRef<Worker | null>(null);
@@ -42,6 +50,26 @@ export default function GamesPage() {
     };
   }, [startParsing]);
 
+  // 当切换文件时，停止当前解析并重新开始
+  const prevFileRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!workerRef.current) return;
+
+    // 跳过首轮（由首次挂载的 effect 启动解析）
+    if (prevFileRef.current === null) {
+      prevFileRef.current = currentFile;
+      return;
+    }
+
+    if (prevFileRef.current !== currentFile) {
+      // 停止并重置，再重新解析新文件
+      stopParsing(workerRef.current);
+      reset();
+      startParsing(workerRef.current);
+      prevFileRef.current = currentFile;
+    }
+  }, [currentFile, startParsing, stopParsing, reset]);
+
   // 计算进度信息
   const progressInfo = useMemo(() => {
     if (!progress) return null;
@@ -57,14 +85,19 @@ export default function GamesPage() {
   }, [progress]);
 
   // 计算是否显示骨架屏
-  const showSkeleton = isInitialLoad && games.length === 0;
+  const showSkeleton = isInitialLoad && totalGames === 0;
 
   // 当游戏加载时，隐藏骨架屏
   useEffect(() => {
-    if (games.length > 0) {
+    if (totalGames > 0) {
       setIsInitialLoad(false);
     }
-  }, [games]);
+  }, [totalGames]);
+
+  // 当过滤器或文件变化时，回到第一页
+  useEffect(() => {
+    setPage(1);
+  }, [currentFile, setPage]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -100,23 +133,7 @@ export default function GamesPage() {
 
         {/* 主内容区 */}
         <Grid size={{ xs: 12, md: 9 }}>
-          {/* 当前文件信息 */}
-          <Box
-            mb={2}
-            p={2}
-            borderRadius={1}
-            sx={{ backgroundColor: "rgba(0, 0, 0, 0.03)" }}
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Typography variant="body2" color="text.secondary">
-              📁 Current file: <strong>{currentFile}</strong>
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              🎯 {games.length} games loaded
-            </Typography>
-          </Box>
+          {/* 顶部信息移除：将分页与页容量移到底部，卡片区域上移对齐左侧 Filters */}
 
           {/* 错误提示 */}
           {error && (
@@ -149,7 +166,7 @@ export default function GamesPage() {
             </Box>
           )}
 
-          {/* 对局网格 */}
+          {/* 对局网格（固定区域） */}
           <Grid container spacing={3}>
             {showSkeleton && (
               <>
@@ -161,7 +178,7 @@ export default function GamesPage() {
               </>
             )}
 
-            {games.length === 0 && !isParsing && !error && (
+            {totalGames === 0 && !isParsing && !error && (
               <Grid size={{ xs: 12 }}>
                 <Box
                   p={6}
@@ -188,8 +205,43 @@ export default function GamesPage() {
             ))}
           </Grid>
 
+          {/* 底部控制：统计 + 页容量 + 分页器 */}
+          <Box mt={3} display="flex" alignItems="center" justifyContent="space-between">
+            <Typography variant="body2" color="text.secondary">
+              🎯 {totalGames} games loaded
+            </Typography>
+
+            <Box display="flex" alignItems="center" gap={2}>
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <InputLabel id="page-size-label">Page size</InputLabel>
+                <Select
+                  labelId="page-size-label"
+                  id="page-size-select"
+                  value={String(pageSize)}
+                  label="Page size"
+                  onChange={(e) => setPageSize(parseInt(String(e.target.value), 10))}
+                >
+                  {[12, 24, 36, 48].map((n) => (
+                    <MenuItem key={n} value={String(n)}>
+                      {n} / page
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Pagination
+                color="primary"
+                count={Math.max(totalPages, 1)}
+                page={Math.min(page, Math.max(totalPages, 1))}
+                onChange={(_, value) => setPage(value)}
+                showFirstButton
+                showLastButton
+              />
+            </Box>
+          </Box>
+
           {/* 加载更多（v2 将支持无限滚动） */}
-          {isParsing && games.length > 0 && (
+          {isParsing && totalGames > 0 && (
             <Box mt={4} textAlign="center">
               <Typography variant="body2" color="text.secondary">
                 Loading more games...

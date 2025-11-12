@@ -33,11 +33,8 @@ export const GamesFilter: React.FC = () => {
   // 处理文件选择
   const handleFileChange = (event: SelectChangeEvent<string>) => {
     const newFile = event.target.value;
+    // 仅更新当前文件；GamesPage 会监听此变化并重新解析
     setCurrentFile(newFile);
-    // 自动重置并重新解析
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
   };
 
   // 处理结果过滤
