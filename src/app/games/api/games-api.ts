@@ -8,7 +8,12 @@ import { formatGameToDatabase, setGameHeaders } from "@/src/lib/chess";
  * 提供与后端 API 交互的方法
  */
 
-const API_BASE = "/api/games";
+// Note: The site is exported statically (next export) and deployed to
+// Cloudflare Pages. That means Next.js route handlers under /api are not
+// available in production. We host equivalent endpoints as Cloudflare Pages
+// Functions under /api/explore. Use that in production, and keep /api/games in
+// local dev so existing Next.js route handlers work.
+const API_BASE = process.env.NODE_ENV === 'production' ? '/api/explore' : '/api/games';
 
 /**
  * 获取 PGN 文件流（用于 Worker 解析）

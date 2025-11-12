@@ -95,7 +95,12 @@ export const startParsingAtom = atom(
     set(parseProgressAtom, { current: 0, total: 10000, done: false });
 
     const file = get(currentFileAtom);
-    const fileUrl = `/api/games/stream?file=${encodeURIComponent(file)}`;
+    // In production we are a static export on Cloudflare Pages, so Next.js app
+    // route handlers under /api are not available. We proxy R2 PGN files via a
+    // Cloudflare Pages Function mounted at /api/explore. In local dev, we keep
+    // using the Next.js route handler under /api/games to avoid breaking DX.
+    const apiBase = process.env.NODE_ENV === 'production' ? '/api/explore' : '/api/games';
+    const fileUrl = `${apiBase}/stream?file=${encodeURIComponent(file)}`;
 
     // 设置 Worker 消息处理
     worker.onmessage = (event) => {
