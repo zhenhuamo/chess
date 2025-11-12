@@ -117,6 +117,26 @@ export default function GameBoardPreview({ game }: Props) {
     return [] as [string, string][];
   }, [bestMove, lastMove, hovered]);
 
+  // 自定义棋子渲染（使用站点静态资源，避免包内 Piece 渲染差异导致的错误）
+  const pieces = useMemo(() => {
+    const url = (code: string) => `/piece/chicago/${code}.svg`;
+    const render = (code: string) => (props?: { svgStyle?: React.CSSProperties; fill?: string }) => (
+      <img src={url(code)} alt={code} style={{ width: '100%', height: '100%', ...(props?.svgStyle || {}) }} />
+    );
+    const base: Record<string, any> = {
+      wP: render('wP'), wR: render('wR'), wN: render('wN'), wB: render('wB'), wQ: render('wQ'), wK: render('wK'),
+      bP: render('bP'), bR: render('bR'), bN: render('bN'), bB: render('bB'), bQ: render('bQ'), bK: render('bK'),
+    };
+    const Fallback = () => <span />;
+    // 兜底：当库请求了未知 pieceType 时，返回一个空组件而不是 undefined
+    return new Proxy(base, {
+      get(target, prop) {
+        const key = String(prop);
+        return key in target ? (target as any)[key] : Fallback as any;
+      },
+    }) as any;
+  }, []);
+
   const loadFen = useCallback(async () => {
     if (loadingRef.current || fen) return;
     loadingRef.current = true;
@@ -226,6 +246,7 @@ export default function GameBoardPreview({ game }: Props) {
               boardOrientation: "white",
               animationDurationInMs: 150,
               boardStyle: { borderRadius: 8, width: "100%", height: "100%" },
+              pieces,
               lightSquareStyle: { backgroundColor: "#edeed1" },
               darkSquareStyle: { backgroundColor: "#7b8794" },
               arrows: arrows.map(([s, e]) => ({ startSquare: s, endSquare: e, color: "#00c8ff99" })),
