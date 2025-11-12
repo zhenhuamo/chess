@@ -110,7 +110,8 @@ export const startParsingAtom = atom(
       if (manifestResp.ok) {
         const manifest = (await manifestResp.json()) as GamesManifest;
         if (manifest?.version === 'v2' && Array.isArray(manifest.games)) {
-          const list = manifest.games.filter(g => !g.file || g.file === file);
+          // Show all games from the manifest (combine across files)
+          const list = manifest.games;
           if (list.length > 0) {
             // Use prebuilt summaries; no need to start the worker.
             set(rawGamesAtom, list as GameSummary[]);

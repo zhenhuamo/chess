@@ -5,7 +5,6 @@ import { Box, Typography, Container, Grid, Alert, AlertTitle, Pagination, FormCo
 import { Icon } from "@iconify/react";
 import { useGamesState } from "./hooks/useGamesState";
 import GameCard from "./components/GameCard";
-import GamesFilter from "./components/GamesFilter";
 import ProgressIndicator from "./components/ProgressIndicator";
 import GameCardSkeleton from "./components/GameCardSkeleton";
 
@@ -106,33 +105,12 @@ export default function GamesPage() {
         <Typography variant="h3" component="h1" gutterBottom>
           Games Library
         </Typography>
-        <Typography variant="body1" color="text.secondary" component="div">
-          <Icon
-            icon="mdi:chess"
-            style={{ verticalAlign: "middle", marginRight: 8, marginLeft: 4 }}
-          />
-          Browse thousands of chess games from{" "}
-          <Typography
-            component="a"
-            href="https://lichess.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            color="primary"
-          >
-            lichess.org
-          </Typography>
-          . Click on any game to analyze it with Stockfish.
-        </Typography>
+        {/* Intro text removed per design request */}
       </Box>
 
+      {/* 主内容区：去掉左侧 Filters，卡片区域全宽显示 */}
       <Grid container spacing={4}>
-        {/* 侧边栏过滤器 */}
-        <Grid size={{ xs: 12, md: 3 }}>
-          <GamesFilter />
-        </Grid>
-
-        {/* 主内容区 */}
-        <Grid size={{ xs: 12, md: 9 }}>
+        <Grid size={{ xs: 12 }}>
           {/* 顶部信息移除：将分页与页容量移到底部，卡片区域上移对齐左侧 Filters */}
 
           {/* 错误提示 */}
@@ -192,7 +170,7 @@ export default function GamesPage() {
                     No games found
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Try selecting a different PGN file or adjusting your filters.
+                    Try reloading the page or check your network connection.
                   </Typography>
                 </Box>
               </Grid>
