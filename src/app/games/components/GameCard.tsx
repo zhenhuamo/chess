@@ -164,23 +164,7 @@ export const GameCard: React.FC<GameCardProps> = ({ game }) => {
           {formatGameInfo()}
         </Typography>
 
-        {game.timeControl && (
-          <Typography variant="caption" color="text.secondary">
-            ⏱️ {game.timeControl}
-          </Typography>
-        )}
-
-        {game.site && (
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-            📍 {game.site}
-          </Typography>
-        )}
-
-        {game.round && (
-          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-            🎯 Round {game.round}
-          </Typography>
-        )}
+        {/* Hide secondary chips (time control, site URL, round) per design feedback */}
       </CardContent>
 
       {/* 底部：操作按钮 */}
