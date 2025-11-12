@@ -8,14 +8,29 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-13',
+    version: 'v2.3.0',
+    title: 'Games Library: Master Games Database with Stockfish Analysis',
+    items: [
+      'New /games page: Browse 100,000+ high-quality master games from Lichess.org with Elo ratings 2000-4000+.',
+      'Smart filtering by result (white/draw/black), ECO opening codes, and game metadata for targeted study.',
+      'One-click analysis: Open any game in the Analyzer with Stockfish 17 engine running in the background.',
+      'Share games with unique links or copy PGN notation; export games for offline analysis.',
+      'Fast client-side parsing with Web Workers: games load incrementally without blocking the UI.',
+      'Responsive grid layout with pagination: view 12/24/36/48 games per page.',
+      'SEO optimized with structured data, meta tags, and comprehensive FAQ section.',
+      'Added Games to left navigation and updated sitemap for better discoverability.',
+    ],
+  },
+  {
     date: '2025-11-11',
     version: 'v2.2.0',
     title: 'Position Explorer: Landing, Preview Controls, Training UX, SEO',
     items: [
       'New landing under /explore: clear intro, Quick Start, How‑to, Practice flow, Coverage & FAQ. Dark theme surfaces without white blocks.',
       'Top Moves list refined: dark cards, better hover; still supports Hot/Win% sorting and Play/Preview/Add actions.',
-      'Preview mode upgraded: ▶/⏮/⏭/↻ controls, progress slider, and on‑board “next move” arrow; Enter applies, Esc closes.',
-      'FEN input UX: Enter to apply, error hint for invalid FEN, “Use Current Board”, and tolerant partial FEN (auto‑fill).',
+      'Preview mode upgraded: ▶/⏮/⏭/↻ controls, progress slider, and on‑board "next move" arrow; Enter applies, Esc closes.',
+      'FEN input UX: Enter to apply, error hint for invalid FEN, "Use Current Board", and tolerant partial FEN (auto‑fill).',
       'Training feedback: Add to Training and Practice Now show snackbars with Start/View actions; Practice Now has Undo and selectable count (5/10/20).',
       'Practice bridge: Start Practice jumps to /analyze retry mode; correct answers auto‑advance through the queue.',
       'Data fallback clarity: fen4→fen2→ancestor (≤4 plies) with explicit hints; low‑data positions no longer ambiguous.',

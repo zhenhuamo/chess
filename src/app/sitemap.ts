@@ -9,7 +9,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${base}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
     { url: `${base}/analyze`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${base}/games`, lastModified: now, changeFrequency: 'daily', priority: 0.85 },
     { url: `${base}/play`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${base}/explore`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${base}/updates`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
   ];
 }
