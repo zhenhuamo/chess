@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+// Enable MDX pages (App Router)
+import createMDX from '@next/mdx';
+
+// MDX is optional; we don't require it for Markdown rendering path.
+const withMDX = createMDX({ extension: /\.mdx?$/ });
 
 const nextConfig: NextConfig = {
   output: "export",
@@ -6,6 +11,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  pageExtensions: ['ts', 'tsx', 'mdx'],
   // Enable cross-origin isolation (COOP/COEP) only when explicitly enabled.
   // In local dev we default to disabling these headers so that a remote
   // cross-origin module Worker (on cacle.chess-analysis.org) can be loaded via
@@ -35,4 +41,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withMDX(nextConfig);

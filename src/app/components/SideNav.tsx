@@ -14,6 +14,7 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import HistoryIcon from '@mui/icons-material/History';
 import PaletteIcon from '@mui/icons-material/Palette';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import ArticleIcon from '@mui/icons-material/Article';
 import { useState } from 'react';
 import AppearanceSettingsDialog from '@/src/components/board/appearanceSettingsDialog';
 import Image from 'next/image';
@@ -91,6 +92,7 @@ export default function SideNav({ collapsed, onToggle }: Props) {
         <Item href="/analyze" icon={<InsightsIcon />} label="Analyze" />
         <Item href="/explore" icon={<TravelExploreIcon />} label="Explore" />
         <Item href="/games" icon={<LibraryBooksIcon />} label="Games" />
+        <Item href="/blog" icon={<ArticleIcon />} label="Blog" />
         <Item href="/play" icon={<SportsEsportsIcon />} label="Play" />
         <Item href="/records" icon={<StorageIcon />} label="Records" />
         <Item href="/updates" icon={<HistoryIcon />} label="Updates" />

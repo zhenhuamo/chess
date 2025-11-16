@@ -8,6 +8,15 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-16',
+    version: 'v2.4.0',
+    title: 'Blog System: Markdown Posts, SEO, Canonical, and Sitemap',
+    items: [
+      'New /blog section with Markdown-based posts and a clean index page.',
+      'First article published: “Introducing Chess Analyzer — Free Chess Analysis Board in Your Browser.”',
+    ],
+  },
+  {
     date: '2025-11-13',
     version: 'v2.3.0',
     title: 'Games Library: Master Games Database with Stockfish Analysis',
