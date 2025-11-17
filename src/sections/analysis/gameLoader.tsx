@@ -162,7 +162,7 @@ export default function GameLoader({ onClose }: { onClose?: () => void }) {
           <Divider sx={{ my: 1 }} />
 
           <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-            💡 Tip: You can also load games from Chess.com on the homepage, then click "Analyze" to switch here
+            💡 Tip: You can also load games from chess-analysis.org on the homepage, then click "Analyze" to switch here
           </Typography>
         </Stack>
       </Paper>
