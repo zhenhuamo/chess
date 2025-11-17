@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Chess } from 'chess.js';
-import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
+import { formatGameToDatabase } from '@/src/lib/chess';
 import HomeGameLoader from './HomeGameLoader';
 import HomeSelfAnalysisBoard from './HomeSelfAnalysisBoard';
 
@@ -26,7 +26,6 @@ export default function LandingPage() {
     try {
       const g = new Chess();
       g.loadPgn(pgnText);
-      try { setGameHeaders(g, { white: { name: 'You' }, black: { name: 'Stockfish' } }); } catch {}
       const { openDB } = await import('idb');
       const db = await openDB('games', 1, { upgrade(db) { if (!db.objectStoreNames.contains('games')) { db.createObjectStore('games', { keyPath: 'id', autoIncrement: true }); } } });
       const rec: any = { ...(formatGameToDatabase(g) as any), playerSide: meta?.playerSide ?? 'w', origin: meta?.origin ?? 'home', engineVariant: 'sf17-lite' };

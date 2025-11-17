@@ -40,8 +40,7 @@ export default async function BlogIndexPage() {
           const dateStr = p.data?.date
             ? new Date(p.data.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
             : '';
-          // Use a fixed preview image for blog cards (requested)
-          const cover = 'https://cacle.chess-analysis.org/img/chess-analysis.png';
+          const cover = p.data?.cover || 'https://cacle.chess-analysis.org/img/chess-analysis.png';
           return (
             <Paper
               key={p.slug}

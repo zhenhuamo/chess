@@ -6,7 +6,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CloseIcon from '@mui/icons-material/Close';
 import { Chess } from 'chess.js';
-import { formatGameToDatabase, setGameHeaders } from '@/src/lib/chess';
+import { formatGameToDatabase } from '@/src/lib/chess';
 import { gameAtom, gameMetaAtom } from './states';
 import { useSetAtom } from 'jotai';
 import { openDB } from 'idb';
@@ -28,8 +28,6 @@ export default function GameLoader({ onClose }: { onClose?: () => void }) {
     try {
       const g = new Chess();
       g.loadPgn(pgnText);
-      try { setGameHeaders(g, { white: { name: 'You' }, black: { name: 'Stockfish' } }); } catch {}
-
       const db = await openDB('games', 1, {
         upgrade(db) {
           if (!db.objectStoreNames.contains('games')) {

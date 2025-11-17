@@ -7,7 +7,15 @@ const withMDX = createMDX({ extension: /\.mdx?$/ });
 
 const nextConfig: NextConfig = {
   output: "export",
-  images: { unoptimized: true },
+  images: {
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cacle.chess-analysis.org',
+      },
+    ],
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
