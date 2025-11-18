@@ -8,6 +8,15 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-19',
+    version: 'v2.5.1',
+    title: 'Homepage Loader Adds Lichess Import',
+    items: [
+      'Home game loader now includes a Lichess tab: enter a username to pull the 50 most recent games and open them directly in the Analyzer.',
+      'Unified import UX copy now reflects PGN, Chess.com, and Lichess sources for clarity.',
+    ],
+  },
+  {
     date: '2025-11-18',
     version: 'v2.5.0',
     title: 'Classic Fischer–Spassky Analysis + Discord Community Link',

@@ -133,12 +133,12 @@ export default function LandingPage() {
 
       <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
         <Stack spacing={{ xs: 3, md: 4 }}>
-          {/* New unified loader (PGN + Chess.com) */}
+          {/* New unified loader (PGN + Chess.com + Lichess) */}
           <Paper ref={loaderRef} variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2.5, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
             <Stack spacing={2}>
-              <Typography variant="subtitle2" color="text.secondary">Load a game from PGN or Chess.com</Typography>
+              <Typography variant="subtitle2" color="text.secondary">Load a game from PGN, Chess.com, or Lichess</Typography>
               <HomeGameLoader
-                onAnalyzePGN={(text) => analyzeGivenPgn(text, { origin: 'chesscom' })}
+                onAnalyzePGN={(text, source) => analyzeGivenPgn(text, { origin: source || 'chesscom' })}
                 onAnalyzeLocalPGN={(text) => analyzeGivenPgn(text, { origin: 'home' })}
               />
             </Stack>

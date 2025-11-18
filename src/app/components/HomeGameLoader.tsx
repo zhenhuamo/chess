@@ -1,31 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Divider, Stack, Tab, Tabs, TextField, Typography, Chip, List, ListItem, ListItemText } from '@mui/material';
 import { getChessComUserRecentGames } from '@/src/lib/chessCom';
+import { getLichessUserRecentGames } from '@/src/lib/lichess';
+import { LoadedGame } from '@/types/game';
 
-type LoadedGame = {
-  id: string;
-  pgn: string;
-  white: { name: string; rating?: number; title?: string };
-  black: { name: string; rating?: number; title?: string };
-  result?: string;
-  timeControl?: string;
-  date?: string;
-  movesNb?: number;
-  url?: string;
-};
+type RemoteSource = 'chesscom' | 'lichess';
 
 export default function HomeGameLoader({
   onAnalyzePGN,
   onAnalyzeLocalPGN,
 }: {
-  // Called when a game (from Chess.com) is picked
-  onAnalyzePGN: (pgn: string) => void;
+  // Called when a game (from Chess.com or Lichess) is picked
+  onAnalyzePGN: (pgn: string, source?: RemoteSource) => void;
   // Called when user pastes PGN directly in this widget
   onAnalyzeLocalPGN?: (pgn: string) => void;
 }) {
-  const [tab, setTab] = useState(0); // 0: PGN, 1: Chess.com
+  const [tab, setTab] = useState(0); // 0: PGN, 1: Chess.com, 2: Lichess
 
   // PGN tab state
   const [pgn, setPgn] = useState('');
@@ -37,6 +29,13 @@ export default function HomeGameLoader({
   const [games, setGames] = useState<LoadedGame[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Lichess tab state
+  const [lichessUsername, setLichessUsername] = useState('');
+  const [lichessDebounced, setLichessDebounced] = useState('');
+  const [lichessGames, setLichessGames] = useState<LoadedGame[]>([]);
+  const [lichessLoading, setLichessLoading] = useState(false);
+  const [lichessError, setLichessError] = useState<string | null>(null);
 
   // Debounce username input
   useEffect(() => {
@@ -61,11 +60,35 @@ export default function HomeGameLoader({
     return () => ctrl.abort();
   }, [debounced]);
 
+  // Debounce Lichess username input
+  useEffect(() => {
+    const t = setTimeout(() => setLichessDebounced(lichessUsername.trim()), 300);
+    return () => clearTimeout(t);
+  }, [lichessUsername]);
+
+  // Fetch recent games from Lichess when username changes
+  useEffect(() => {
+    if (!lichessDebounced) {
+      setLichessGames([]);
+      setLichessError(null);
+      return;
+    }
+    const ctrl = new AbortController();
+    setLichessLoading(true);
+    setLichessError(null);
+    getLichessUserRecentGames(lichessDebounced, ctrl.signal)
+      .then(setLichessGames)
+      .catch((e) => setLichessError(e?.message || 'Failed to fetch games'))
+      .finally(() => setLichessLoading(false));
+    return () => ctrl.abort();
+  }, [lichessDebounced]);
+
   return (
     <Box>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} aria-label="load game tabs" sx={{ minHeight: 0 }}>
         <Tab label="PGN" sx={{ textTransform: 'none', minHeight: 34 }} />
         <Tab label="Chess.com" sx={{ textTransform: 'none', minHeight: 34 }} />
+        <Tab label="Lichess" sx={{ textTransform: 'none', minHeight: 34 }} />
       </Tabs>
       <Divider sx={{ mb: 2 }} />
 
@@ -133,9 +156,66 @@ export default function HomeGameLoader({
               return (
                 <ListItem
                   key={g.id}
+              divider
+              sx={{ cursor: 'pointer', '&:hover': { opacity: 0.85 } }}
+              onClick={() => onAnalyzePGN(g.pgn, 'chesscom')}
+            >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Typography component="span" fontWeight={700} color={whiteWon ? 'success.main' : undefined}>
+                          {g.white.name} ({g.white.rating ?? '?'})
+                        </Typography>
+                        <Typography component="span" color="text.secondary">vs</Typography>
+                        <Typography component="span" fontWeight={700} color={blackWon ? 'success.main' : undefined}>
+                          {g.black.name} ({g.black.rating ?? '?'})
+                        </Typography>
+                        <Chip size="small" label={g.result ?? '*'} variant="outlined" />
+                      </Box>
+                    }
+                    secondary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.25 }}>
+                        {g.timeControl && <Chip size="small" label={g.timeControl} />}
+                        {g.movesNb && <Chip size="small" label={`${Math.ceil((g.movesNb || 0) / 2)} moves`} />}
+                        {g.date && <Chip size="small" label={g.date} />}
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+        </Stack>
+      )}
+
+      {/* Lichess tab */}
+      {tab === 2 && (
+        <Stack spacing={1.5}>
+          <TextField
+            label="Lichess username"
+            placeholder="e.g. magnuscarlsen"
+            value={lichessUsername}
+            onChange={(e) => setLichessUsername(e.target.value)}
+            size="small"
+          />
+          {lichessLoading && <Typography variant="body2">Loading…</Typography>}
+          {!lichessLoading && lichessError && (
+            <Typography variant="body2" color="error">{lichessError}</Typography>
+          )}
+          {!lichessLoading && !lichessError && lichessDebounced && lichessGames.length === 0 && (
+            <Typography variant="body2" color="warning.main">No games found. Please check your username.</Typography>
+          )}
+
+          <List sx={{ width: '100%', p: 0 }}>
+            {lichessGames.map((g) => {
+              const whiteWon = g.result === '1-0';
+              const blackWon = g.result === '0-1';
+              return (
+                <ListItem
+                  key={g.id}
                   divider
                   sx={{ cursor: 'pointer', '&:hover': { opacity: 0.85 } }}
-                  onClick={() => onAnalyzePGN(g.pgn)}
+                  onClick={() => onAnalyzePGN(g.pgn, 'lichess')}
                 >
                   <ListItemText
                     primary={
