@@ -98,6 +98,18 @@ export default function SideNav({ collapsed, onToggle }: Props) {
         <Item href="/updates" icon={<HistoryIcon />} label="Updates" />
         <Item href="/contact" icon={<MailOutlineIcon />} label="Contact" />
         <ListItemButton
+          component="a"
+          href="https://discord.gg/hvrEXhX8qA"
+          target="_blank"
+          rel="noreferrer"
+          sx={{ borderRadius: 2, mx: 1, my: 0.5 }}
+        >
+          <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
+            <Image src="/discord.svg" alt="Discord" width={20} height={20} style={{ display: 'block' }} />
+          </ListItemIcon>
+          {!collapsed && <ListItemText primary="Discord" />}
+        </ListItemButton>
+        <ListItemButton
           onClick={() => setOpenAppearance(true)}
           sx={{
             borderRadius: 2,

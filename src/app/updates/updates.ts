@@ -8,6 +8,15 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-18',
+    version: 'v2.5.0',
+    title: 'Classic Fischer–Spassky Analysis + Discord Community Link',
+    items: [
+      'Published a deep-dive blog post “Revisiting Fischer vs. Spassky 1972 Game 6” with PGN download, embedded video, and Analyzer walkthrough.',
+      'Added a Discord entry to the left navigation so players can join the official community server directly from any page.',
+    ],
+  },
+  {
     date: '2025-11-16',
     version: 'v2.4.0',
     title: 'Blog System: Markdown Posts, SEO, Canonical, and Sitemap',
