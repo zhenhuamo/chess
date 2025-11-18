@@ -4,6 +4,7 @@ import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import SideNav, { getNavWidth } from './SideNav';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import Footer from './Footer';
 
 // Centralized MUI theme (dark, to match the reference look)
 const theme = createTheme({
@@ -25,6 +26,9 @@ export default function ThemeProviderClient({ children }: PropsWithChildren) {
       <SideNav collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <Box component="main" sx={{ pl: `${navWidth}px`, minHeight: '100vh', bgcolor: 'background.default' }}>
         {children}
+        <Box className="site-footer">
+          <Footer />
+        </Box>
       </Box>
     </ThemeProvider>
   );
