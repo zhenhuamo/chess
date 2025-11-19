@@ -339,12 +339,15 @@ export default function LandingPage() {
           <li>
             <Typography variant="body1">A clean chess analysis board that loads instantly.</Typography>
           </li>
+          <li>
+            <Typography variant="body1"><strong>New:</strong> Integrated Lichess Explorer to view global opening stats and master games.</Typography>
+          </li>
         </Box>
         <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 28 }, fontWeight: 700 }}>
           Works With Your Favorite Sites And Databases
         </Typography>
         <Typography variant="body1">
-          If you already study on chess.com, our tool helps you prepare before using chess.com analysis board or checking chess.com free analysis features. If you prefer lichess, you can cross-check lines against lichess analysis board. We also parse PGNs from sources like 365chess analysis exports and other archives. No matter if you write analysis board chess notes by hand or import from online sites, you will get consistent engine feedback.
+          If you already study on chess.com, our tool helps you prepare before using chess.com analysis board or checking chess.com free analysis features. If you prefer lichess, you can use our integrated <strong>Lichess Explorer</strong> to check opening stats and master games instantly. We also parse PGNs from sources like 365chess analysis exports and other archives. No matter if you write analysis board chess notes by hand or import from online sites, you will get consistent engine feedback.
         </Typography>
         <Typography variant="h3" sx={{ fontSize: { xs: 22, md: 28 }, fontWeight: 700 }}>
           How To Use Chess Analysis Effectively

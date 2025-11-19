@@ -18,10 +18,11 @@ export enum LichessError {
 }
 
 interface LichessPlayer {
-  user: {
+  user?: {
     name: string;
     title?: string;
   };
+  name?: string; // For masters DB, name is often top-level or handled differently
   rating: number;
 }
 
@@ -51,4 +52,36 @@ export interface LichessGame {
     name?: string;
   };
   url?: string;
+}
+
+export interface LichessExplorerMove {
+  uci: string;
+  san: string;
+  averageRating?: number;
+  white: number;
+  draws: number;
+  black: number;
+  game?: LichessGame; // For top games in masters
+}
+
+export interface LichessExplorerGame {
+  id: string;
+  winner: "white" | "black" | "draw";
+  white: LichessPlayer;
+  black: LichessPlayer;
+  year: number;
+  month: string;
+}
+
+export interface LichessExplorerResponse {
+  white: number;
+  draws: number;
+  black: number;
+  moves: LichessExplorerMove[];
+  topGames?: LichessExplorerGame[];
+  recentGames?: LichessExplorerGame[];
+  opening?: {
+    eco: string;
+    name: string;
+  };
 }

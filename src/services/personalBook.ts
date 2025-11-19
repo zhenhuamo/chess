@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
-import type { Game } from "@/src/types/game";
+import { getEvaluateGameParams } from "@/src/lib/chess";
+import type { Game } from "@/types/game";
 
 export type Fen4 = string; // piece/side/castling/ep
 
@@ -42,7 +43,7 @@ export async function buildPersonalBookIndex(games: Game[], maxPlies = 12): Prom
     // Re-simulate to collect FEN before each move (up to maxPlies)
     const sim = new Chess();
     const startFen: string | undefined = (chess as any).getHeaders?.()?.FEN;
-    if (startFen) { try { sim.load(startFen); } catch {} }
+    if (startFen) { try { sim.load(startFen); } catch { } }
 
     for (let i = 0; i < verbose.length && i < maxPlies; i++) {
       const mv = verbose[i];

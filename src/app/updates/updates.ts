@@ -9,6 +9,18 @@ export interface UpdateEntry {
 export const UPDATES: UpdateEntry[] = [
   {
     date: '2025-11-20',
+    version: 'v2.6.0',
+    title: 'Analyzer: Integrated Lichess Explorer',
+    items: [
+      'Replaced the local "Book" tab with a full-featured Lichess Explorer integration.',
+      'View opening statistics from millions of Lichess games and Master games directly in the analysis panel.',
+      'Toggle between "Lichess" (global) and "Masters" databases to compare amateur vs. pro trends.',
+      'See win/draw/loss percentages, total game counts, and average ratings for each move.',
+      'Click moves to play them on the board or preview lines with the engine.',
+    ],
+  },
+  {
+    date: '2025-11-20',
     version: 'v2.5.2',
     title: 'Dedicated Import Page With Filters',
     items: [
