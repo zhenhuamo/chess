@@ -54,155 +54,237 @@ export default function LandingPage() {
           'radial-gradient(1000px 500px at 50% -40%, rgba(14,165,233,0.12), transparent 65%)'
         ].join(', '),
       }}>
-      <Container
-        maxWidth="lg"
-        sx={{
-          py: { xs: 6, md: 8 },
-          display: 'flex',
-          flexDirection: 'column',
-          gap: { xs: 4, md: 6 },
-        }}
-      >
-        <Stack spacing={{ xs: 4, md: 5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-            <HomeSelfAnalysisBoard />
+        <Container
+          maxWidth="lg"
+          sx={{
+            py: { xs: 6, md: 8 },
+          }}
+        >
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '1.2fr 0.8fr' },
+            gap: { xs: 6, lg: 8 },
+            alignItems: 'center'
+          }}>
+            {/* Left Column: Text Content */}
+            <Stack spacing={{ xs: 4, md: 5 }}>
+              <Stack spacing={2.5}>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                  <Chip size="small" color="primary" label="Free" />
+                  <Chip size="small" variant="outlined" label="Runs locally" />
+                  <Chip size="small" variant="outlined" label="No sign-in" />
+                </Stack>
+                <Typography
+                  variant="h1"
+                  sx={{
+                    fontSize: { xs: 36, md: 56 },
+                    fontWeight: 800,
+                    lineHeight: 1.1,
+                    background: 'linear-gradient(90deg, #6366f1, #ec4899 50%, #06b6d4)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  Master your games with Stockfish insights
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.125rem', maxWidth: 600 }}>
+                  Play through ideas, run engine checks, and watch the evaluation bar update live. Everything runs in your browser – no account, no uploads.
+                </Typography>
+
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <BoltIcon fontSize="small" color="primary" />
+                    <Typography variant="body2">Stockfish 17 strength</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <InsightsIcon fontSize="small" color="primary" />
+                    <Typography variant="body2">Blunder alerts</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <OfflineBoltIcon fontSize="small" color="primary" />
+                    <Typography variant="body2">Private & Fast</Typography>
+                  </Stack>
+                </Stack>
+
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ pt: 1 }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    startIcon={<InsightsIcon />}
+                    onClick={() => router.push('/analyze')}
+                    sx={{ px: 4, py: 1.5, fontSize: '1.05rem' }}
+                  >
+                    Start analyzing
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<PlayArrowIcon />}
+                    LinkComponent={Link}
+                    href="/play"
+                    sx={{ px: 4, py: 1.5, fontSize: '1.05rem' }}
+                  >
+                    Play Computer
+                  </Button>
+                </Stack>
+              </Stack>
+            </Stack>
+
+            {/* Right Column: Game Loader */}
+            <Box sx={{ position: 'relative' }}>
+              {/* Decorative blur behind loader */}
+              <Box sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '120%',
+                height: '120%',
+                background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%)',
+                zIndex: 0,
+                pointerEvents: 'none',
+              }} />
+              <Paper
+                ref={loaderRef}
+                elevation={0}
+                sx={{
+                  p: { xs: 2.5, md: 3.5 },
+                  borderRadius: 3,
+                  backdropFilter: 'blur(12px)',
+                  backgroundColor: 'rgba(30, 41, 59, 0.7)', // Dark slate background
+                  border: '1px solid rgba(255,255,255,0.1)', // Subtle border
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)', // Deep shadow
+                  position: 'relative',
+                  zIndex: 1,
+                  '.MuiTabs-root': { mb: 2, borderBottom: '1px solid rgba(255,255,255,0.1)' },
+                  '.MuiTab-root': { color: 'rgba(255,255,255,0.7)', '&.Mui-selected': { color: '#fff' } },
+                  '.MuiInputBase-root': { color: '#fff', bgcolor: 'rgba(0,0,0,0.2)' },
+                  '.MuiInputLabel-root': { color: 'rgba(255,255,255,0.6)' },
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' },
+                  '.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.4)' },
+                }}
+              >
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} gutterBottom sx={{ color: '#fff' }}>
+                      Quick Import
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Load a game from PGN, Chess.com, or Lichess to start analyzing instantly.
+                    </Typography>
+                  </Box>
+                  <HomeGameLoader
+                    onAnalyzePGN={(text, source) => analyzeGivenPgn(text, { origin: source || 'chesscom' })}
+                    onAnalyzeLocalPGN={(text) => analyzeGivenPgn(text, { origin: 'home' })}
+                  />
+                </Stack>
+              </Paper>
+            </Box>
           </Box>
-
-          <Stack spacing={2.5} sx={{ mx: 'auto', width: '100%', maxWidth: 960 }}>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: { xs: 'center', md: 'flex-start' } }}>
-              <Chip size="small" color="primary" label="Free" />
-              <Chip size="small" variant="outlined" label="Runs locally" />
-              <Chip size="small" variant="outlined" label="No sign-in" />
-            </Stack>
-            <Typography
-              variant="h2"
-              sx={{
-                fontSize: { xs: 30, md: 44 },
-                fontWeight: 800,
-                lineHeight: 1.1,
-                textAlign: { xs: 'center', md: 'left' },
-                background: 'linear-gradient(90deg, #6366f1, #ec4899 50%, #06b6d4)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-              }}
-            >
-              Master your games with Stockfish insights
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-              Play through ideas, run engine checks, and watch the evaluation bar update live. Everything runs in your browser – no account, no uploads.
-            </Typography>
-
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ justifyContent: { xs: 'center', md: 'flex-start' } }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <BoltIcon fontSize="small" color="primary" />
-                <Typography variant="body2">Stockfish 17 strength on demand</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <InsightsIcon fontSize="small" color="primary" />
-                <Typography variant="body2">Multiple candidate moves & blunder alerts</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <OfflineBoltIcon fontSize="small" color="primary" />
-                <Typography variant="body2">Local-first, private, and fast</Typography>
-              </Stack>
-            </Stack>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: { xs: 'center', md: 'flex-start' } }}>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<InsightsIcon />}
-                onClick={() => router.push('/analyze')}
-              >
-                Start analyzing now
-              </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                startIcon={<UploadFileIcon />}
-                onClick={scrollToPgn}
-              >
-                Upload or paste PGN
-              </Button>
-            </Stack>
-          </Stack>
-        </Stack>
-      </Container>
+        </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
-        <Stack spacing={{ xs: 3, md: 4 }}>
-          {/* New unified loader (PGN + Chess.com + Lichess) */}
-          <Paper ref={loaderRef} variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2.5, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-            <Stack spacing={2}>
-              <Typography variant="subtitle2" color="text.secondary">Load a game from PGN, Chess.com, or Lichess</Typography>
-              <HomeGameLoader
-                onAnalyzePGN={(text, source) => analyzeGivenPgn(text, { origin: source || 'chesscom' })}
-                onAnalyzeLocalPGN={(text) => analyzeGivenPgn(text, { origin: 'home' })}
-              />
-            </Stack>
-          </Paper>
-          <Box
-            sx={{
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
+        <Stack spacing={{ xs: 6, md: 8 }}>
+
+          {/* Feature Section: Interactive Board */}
+          <Stack spacing={6} alignItems="center">
+            <Box sx={{ textAlign: 'center', maxWidth: 800 }}>
+              <Typography variant="h3" sx={{ fontSize: { xs: 28, md: 36 }, fontWeight: 700, mb: 2 }}>
+                Interactive Analysis Board
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.125rem', lineHeight: 1.7 }}>
+                Don't just read lines—play them out. Our board lets you experiment with variations, visualize threats with arrows, and get instant feedback from Stockfish 17.
+              </Typography>
+            </Box>
+
+            <Box sx={{ width: '100%', maxWidth: 1000 }}>
+              <Paper variant="outlined" sx={{ p: 1, borderRadius: 3, overflow: 'hidden', bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <HomeSelfAnalysisBoard />
+              </Paper>
+            </Box>
+
+            <Box sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' },
-              gap: { xs: 2.5, md: 3 },
-              alignItems: 'stretch',
-            }}
-          >
-            {/* Left column previously had the standalone PGN card. It is removed to avoid duplication. */}
-            <Stack spacing={2.5} sx={{ height: '100%' }}>
-              <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2.5, flex: 1 }}>
-                <Typography variant="subtitle2" color="text.secondary">Three steps to better review</Typography>
-                <Divider sx={{ my: 1.5 }} />
-                <Stack spacing={1.5}>
-                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary">Step 1</Typography>
-                    <Typography variant="body2">Paste or upload your PGN</Typography>
-                  </Paper>
-                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary">Step 2</Typography>
-                    <Typography variant="body2">Add key positions to the board</Typography>
-                  </Paper>
-                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary">Step 3</Typography>
-                    <Typography variant="body2">Study engine advice and tune settings</Typography>
-                  </Paper>
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+              gap: 3,
+              width: '100%'
+            }}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2.5, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Stack spacing={2}>
+                  <Box sx={{ width: 48, height: 48, borderRadius: 2, bgcolor: 'primary.900', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                    <UploadFileIcon fontSize="medium" />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} gutterBottom>1. Import</Typography>
+                    <Typography variant="body2" color="text.secondary">Paste PGN or fetch games directly from Chess.com or Lichess.</Typography>
+                  </Box>
                 </Stack>
               </Paper>
-
-              <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2.5 }}>
-                <Typography variant="subtitle2" color="text.secondary">Quick actions</Typography>
-                <Divider sx={{ my: 1.5 }} />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Button LinkComponent={Link} href="/analyze" variant="outlined" startIcon={<InsightsIcon />}>Open analysis board</Button>
-                  <Button LinkComponent={Link} href="/play" variant="outlined" startIcon={<PlayArrowIcon />}>Play vs. Stockfish</Button>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2.5, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Stack spacing={2}>
+                  <Box sx={{ width: 48, height: 48, borderRadius: 2, bgcolor: 'secondary.900', color: 'secondary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
+                    <InsightsIcon fontSize="medium" />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} gutterBottom>2. Analyze</Typography>
+                    <Typography variant="body2" color="text.secondary">Review key moments, find missed wins, and understand blunders.</Typography>
+                  </Box>
                 </Stack>
               </Paper>
-            </Stack>
-          </Box>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2.5, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Stack spacing={2}>
+                  <Box sx={{ width: 48, height: 48, borderRadius: 2, bgcolor: 'success.900', color: 'success.main', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                    <BoltIcon fontSize="medium" />
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700} gutterBottom>3. Improve</Typography>
+                    <Typography variant="body2" color="text.secondary">Learn from your mistakes and master new opening lines.</Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Box>
+          </Stack>
 
-          <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 2.5 }}>
-            <Typography variant="subtitle2" color="text.secondary">Why players pick Chess Analyzer</Typography>
-            <Divider sx={{ my: 1.5 }} />
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ flexWrap: 'wrap' }}>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <BoltIcon fontSize="small" color="primary" />
-                <Typography variant="body2">World-class engine ready in one click</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <InsightsIcon fontSize="small" color="primary" />
-                <Typography variant="body2">Visual arrows, evaluation bar, move list</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <OfflineBoltIcon fontSize="small" color="primary" />
-                <Typography variant="body2">Runs locally for privacy and speed</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <UploadFileIcon fontSize="small" color="primary" />
-                <Typography variant="body2">Paste, upload, and export PGNs seamlessly</Typography>
-              </Stack>
+          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 4, bgcolor: 'background.paper' }}>
+            <Stack spacing={3}>
+              <Box sx={{ textAlign: 'center', maxWidth: 700, mx: 'auto' }}>
+                <Typography variant="h3" sx={{ fontSize: { xs: 24, md: 30 }, fontWeight: 700, mb: 1 }}>
+                  Why players pick Chess Analyzer
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Built for speed, privacy, and ease of use.
+                </Typography>
+              </Box>
+              <Divider />
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' },
+                gap: 3
+              }}>
+                <Stack spacing={1} alignItems="center" sx={{ textAlign: 'center' }}>
+                  <BoltIcon color="primary" fontSize="large" />
+                  <Typography variant="subtitle2" fontWeight={700}>Powerful Engine</Typography>
+                  <Typography variant="body2" color="text.secondary">Stockfish 17 running locally via WebAssembly</Typography>
+                </Stack>
+                <Stack spacing={1} alignItems="center" sx={{ textAlign: 'center' }}>
+                  <InsightsIcon color="primary" fontSize="large" />
+                  <Typography variant="subtitle2" fontWeight={700}>Deep Insights</Typography>
+                  <Typography variant="body2" color="text.secondary">Visual arrows, eval bar, and multi-PV lines</Typography>
+                </Stack>
+                <Stack spacing={1} alignItems="center" sx={{ textAlign: 'center' }}>
+                  <OfflineBoltIcon color="primary" fontSize="large" />
+                  <Typography variant="subtitle2" fontWeight={700}>100% Private</Typography>
+                  <Typography variant="body2" color="text.secondary">Your games never leave your browser</Typography>
+                </Stack>
+                <Stack spacing={1} alignItems="center" sx={{ textAlign: 'center' }}>
+                  <UploadFileIcon color="primary" fontSize="large" />
+                  <Typography variant="subtitle2" fontWeight={700}>Easy Import</Typography>
+                  <Typography variant="body2" color="text.secondary">Seamless PGN paste and file uploads</Typography>
+                </Stack>
+              </Box>
             </Stack>
           </Paper>
         </Stack>
