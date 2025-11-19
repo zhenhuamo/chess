@@ -36,4 +36,10 @@ export interface LoadedGame {
   timeControl?: string;
   movesNb?: number;
   url?: string;
+  perfType?: string;
+  isRated?: boolean;
+  openingName?: string;
+  termination?: string;
+  ecoCode?: string;
+  timestamp?: number;
 }

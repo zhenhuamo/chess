@@ -17,4 +17,6 @@ export interface ChessComGame {
   end_time: number;
   eco?: string;
   termination?: string;
+  rules?: string;
+  rated?: boolean;
 }

@@ -56,12 +56,65 @@ export const getLichessEval = async (
   }
 };
 
+export interface LichessFetchOptions {
+  perfType?:
+    | "ultraBullet"
+    | "bullet"
+    | "blitz"
+    | "rapid"
+    | "classical"
+    | "correspondence";
+  ratedOnly?: boolean;
+  since?: number;
+  until?: number;
+  max?: number;
+  includeOpening?: boolean;
+}
+
+const DEFAULT_MAX_GAMES = 50;
+const MAX_FETCHABLE_GAMES = 300;
+
+const buildLichessQuery = (options?: LichessFetchOptions) => {
+  const params = new URLSearchParams();
+  const until = options?.until ?? Date.now();
+  params.set("until", String(until));
+
+  const max = Math.min(
+    Math.max(options?.max ?? DEFAULT_MAX_GAMES, 1),
+    MAX_FETCHABLE_GAMES
+  );
+  params.set("max", String(max));
+  params.set("pgnInJson", "true");
+  params.set("sort", "dateDesc");
+  params.set("clocks", "true");
+
+  if (options?.since) {
+    params.set("since", String(options.since));
+  }
+
+  if (options?.perfType) {
+    params.set("perfType", options.perfType);
+  }
+
+  if (options?.ratedOnly) {
+    params.set("rated", "true");
+  }
+
+  if (options?.includeOpening) {
+    params.set("opening", "true");
+  }
+
+  return params.toString();
+};
+
 export const getLichessUserRecentGames = async (
   username: string,
+  options?: LichessFetchOptions,
   signal?: AbortSignal
 ): Promise<LoadedGame[]> => {
+  const query = buildLichessQuery(options);
   const res = await fetch(
-    `https://lichess.org/api/games/user/${username}?until=${Date.now()}&max=50&pgnInJson=true&sort=dateDesc&clocks=true`,
+    `https://lichess.org/api/games/user/${username}?${query}`,
     { method: "GET", headers: { accept: "application/x-ndjson" }, signal }
   );
 
@@ -142,6 +195,11 @@ const formatLichessGame = (data: LichessGame): LoadedGame => {
     date: new Date(data.createdAt || data.lastMoveAt).toLocaleDateString(),
     movesNb: data.moves?.split(" ").length || 0,
     url: `https://lichess.org/${data.id}`,
+    perfType: data.perf,
+    isRated: data.rated,
+    openingName: data.opening?.name,
+    termination: data.status,
+    timestamp: data.createdAt || data.lastMoveAt,
   };
 };
 

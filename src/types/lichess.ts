@@ -41,8 +41,14 @@ export interface LichessGame {
     black: LichessPlayer;
   };
   winner?: "white" | "black";
+  perf?: string;
+  rated?: boolean;
   moves: string;
   pgn: string;
   clock: LichessClock;
+  opening?: {
+    eco?: string;
+    name?: string;
+  };
   url?: string;
 }

@@ -8,6 +8,16 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-20',
+    version: 'v2.5.2',
+    title: 'Dedicated Import Page With Filters',
+    items: [
+      'Homepage loader now routes Chess.com and Lichess queries to a new /import page with paginated results, quick “Open in Analyzer” buttons, and clearer status messaging.',
+      'Lichess imports support time-control, rated-only, max games, and date range filters (mapped to perfType/rated/since/until API parameters).',
+      'Chess.com imports gain local filters (derived from time_control/rated/PGN metadata) so players can narrow by blitz/rapid, rated status, and custom date ranges.',
+    ],
+  },
+  {
     date: '2025-11-19',
     version: 'v2.5.1',
     title: 'Homepage Loader Adds Lichess Import',

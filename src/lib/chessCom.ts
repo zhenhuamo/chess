@@ -65,6 +65,8 @@ export const getChessComUserAvatar = async (
 const formatChessComGame = (data: ChessComGame): LoadedGame => {
   const result = data.pgn.match(/\[Result "(.*?)"]/)?.[1];
   const movesNb = data.pgn.match(/\d+?\. /g)?.length;
+  const openingMatch = data.pgn.match(/\[Opening "(.*?)"]/);
+  const ecoMatch = data.pgn.match(/\[ECO "(.*?)"]/);
 
   return {
     id: data.uuid || data.url?.split("/").pop() || data.id,
@@ -86,6 +88,12 @@ const formatChessComGame = (data: ChessComGame): LoadedGame => {
       : new Date().toLocaleDateString(),
     movesNb: movesNb ? movesNb * 2 : undefined,
     url: data.url,
+    perfType: data.rules || undefined,
+    isRated: typeof data.rated === "boolean" ? data.rated : undefined,
+    openingName: openingMatch?.[1] || data.eco,
+    termination: data.termination,
+    ecoCode: ecoMatch?.[1] || data.eco,
+    timestamp: data.end_time ? data.end_time * 1000 : undefined,
   };
 };
 
