@@ -8,6 +8,19 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-21',
+    version: 'v2.7.0',
+    title: 'Explore Page Overhaul: Global Database & Real-Time Stats',
+    items: [
+      'Complete redesign of the /explore page with a focus on real-time data and usability.',
+      'Integrated "Online DB" (Global) and "Masters DB" for instant access to millions of games.',
+      'New "Mini Book" tab visualizes opening trees without needing an engine.',
+      'Restored and optimized landing page content with clear "How It Works" and "Quick Start" guides.',
+      'Added "Practice Drills" queue to instantly convert interesting positions into training exercises.',
+      'Improved board size and responsive layout for better analysis on all devices.',
+    ],
+  },
+  {
     date: '2025-11-20',
     version: 'v2.6.0',
     title: 'Analyzer: Integrated Lichess Explorer',
