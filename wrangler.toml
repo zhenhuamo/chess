@@ -8,8 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 
 # Tell Cloudflare Pages which directory to publish from the framework build.
 # This makes Pages honor the compatibility flags in this file.
-# 对于 Next 静态导出使用 out 目录；如果切回 Next on Pages，再改回 .vercel/output/static
-pages_build_output_dir = "out"
+# Next on Pages 会把静态资源写到 .vercel/output/static
+pages_build_output_dir = ".vercel/output/static"
 
 [vars]
 # Minimal env: serve engines from same-origin proxy and force remote assets
