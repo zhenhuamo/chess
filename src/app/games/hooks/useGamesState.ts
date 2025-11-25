@@ -106,7 +106,8 @@ export const startParsingAtom = atom(
     // Manifest is proxied at /api/explore/manifest in production. If unavailable
     // (404/5xx), we silently fall back to the streaming parser.
     try {
-      const manifestResp = await fetch('/api/explore/manifest', { cache: 'reload' });
+      const manifestUrl = `/api/explore/manifest?file=${encodeURIComponent(file)}`;
+      const manifestResp = await fetch(manifestUrl, { cache: 'reload' });
       if (manifestResp.ok) {
         const manifest = (await manifestResp.json()) as GamesManifest;
         if (manifest?.version === 'v2' && Array.isArray(manifest.games)) {

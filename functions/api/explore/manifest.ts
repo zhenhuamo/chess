@@ -7,18 +7,35 @@ const DEFAULT_MANIFEST_URL = 'https://cacle.chess-analysis.org/explore/explore-m
 
 export const onRequestGet: PagesFunction = async (ctx) => {
   try {
+    const url = new URL(ctx.request.url);
+    const fileParam = url.searchParams.get('file') || '';
+    const file = fileParam ? fileParam.split('/').pop() || '' : '';
     const target = (ctx.env as any)?.EXPL_MANIFEST_URL || DEFAULT_MANIFEST_URL;
     const resp = await fetch(target, { cf: { cacheTtl: 3600, cacheEverything: true } });
     if (!resp.ok) return new Response(JSON.stringify({ error: 'upstream_error', status: resp.status }), { status: 502, headers: jsonNoStore() });
     const body = await resp.text();
+    const filtered = filterManifest(body, file);
     const h = new Headers();
     h.set('content-type', 'application/json; charset=utf-8');
     h.set('cache-control', 'public, max-age=3600');
     const et = resp.headers.get('etag'); if (et) h.set('etag', et);
-    return new Response(body, { status: 200, headers: h });
+    return new Response(filtered, { status: 200, headers: h });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: 'internal', message: e?.message || 'unknown' }), { status: 500, headers: jsonNoStore() });
   }
 };
 
 function jsonNoStore() { return { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }; }
+
+function filterManifest(body: string, file: string) {
+  if (!file) return body;
+  try {
+    const data = JSON.parse(body);
+    if (!data || !Array.isArray(data.games)) return body;
+    const games = data.games.filter((g: any) => g?.file === file);
+    const subset = { ...data, files: [file], totalGames: games.length, games };
+    return JSON.stringify(subset);
+  } catch {
+    return body;
+  }
+}
