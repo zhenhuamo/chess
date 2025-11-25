@@ -3,7 +3,6 @@
 # generated _worker.js. Pages will detect this file and apply flags at runtime.
 
 name = "chess-pages"
-account_id = "e833787aba82fc4986e1458b298231e0"
 compatibility_date = "2025-10-27"
 compatibility_flags = ["nodejs_compat"]
 
@@ -26,4 +25,3 @@ bucket_name = "chess-share"
 binding = "PUZZLE_DB"          # 你在应用里用的名字，随意；比如 PUZZLE_DB
 database_name = "lichess-puzzles"
 database_id = "7429df01-34df-415e-a376-7960a3088e03"
-remote = true        # 关键：告诉 wrangler 在 dev 时使用远程 D1
