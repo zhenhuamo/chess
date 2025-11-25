@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { STREAM_ALLOW_LIST } from '../../explore/streamAllowList';
 
 export const runtime = 'edge';
-
-const ALLOW_LIST: Record<string, string> = {
-    'lichess-4000.pgn': 'https://cacle.chess-analysis.org/chess-png/lichess-4000.pgn',
-    'lichess-2025-08-2000.pgn': 'https://cacle.chess-analysis.org/chess-png/lichess-2025-08-2000.pgn',
-    'lichess-2000.pgn': 'https://cacle.chess-analysis.org/chess-png/lichess-2000.pgn',
-};
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const file = searchParams.get('file');
 
-    if (!file || !ALLOW_LIST[file]) {
+    if (!file || !STREAM_ALLOW_LIST[file]) {
         return NextResponse.json({ error: 'invalid_file' }, { status: 400 });
     }
 
-    const target = ALLOW_LIST[file];
+    const target = STREAM_ALLOW_LIST[file];
 
     try {
         const response = await fetch(target);
