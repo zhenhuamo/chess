@@ -10,6 +10,8 @@ node_modules/
 /.next/
 /out/
 
+.vercel/
+
 # Production
 /build
 /dist

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 const ALLOW_LIST: Record<string, string> = {
     'lichess-4000.pgn': 'https://cacle.chess-analysis.org/chess-png/lichess-4000.pgn',
     'lichess-2025-08-2000.pgn': 'https://cacle.chess-analysis.org/chess-png/lichess-2025-08-2000.pgn',

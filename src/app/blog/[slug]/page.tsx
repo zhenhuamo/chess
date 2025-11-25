@@ -4,6 +4,10 @@ import { getPostBySlug, listBlogSlugs } from '@/src/lib/blog';
 import PostClient from '../components/PostClient';
 import { SITE_URL } from '@/src/config/site';
 
+export const dynamic = 'force-static';
+export const dynamicParams = false;
+export const revalidate = false;
+
 // Extract first <video> (or a wrapping <figure> that contains a <video>) from an HTML string.
 // Returns { leadHtml, contentHtml }. This runs on the server to keep SSR/CSR consistent.
 function extractLeadVideo(html: string): { leadHtml: string | null; contentHtml: string } {
