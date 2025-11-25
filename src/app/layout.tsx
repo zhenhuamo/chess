@@ -5,6 +5,7 @@ import ThemeProviderClient from "./components/ThemeProviderClient";
 import AppearanceBootstrap from "@/src/components/board/appearanceBootstrap";
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://chess-analysis.org'),
   title: "Chess Analyzer",
   description: "Online chess analysis with Stockfish",
   icons: {

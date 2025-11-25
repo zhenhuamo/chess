@@ -25,7 +25,7 @@ export default function ShareViewStaticPage() {
       const sp = new URLSearchParams(window.location.search);
       const ply = Number(sp.get('ply') || '');
       if (Number.isFinite(ply) && ply >= 0) setTargetPly(Math.floor(ply));
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function ShareViewStaticPage() {
         setErr(null);
         const r = await fetch(`${SHARE_API_BASE}/${id}`, { cache: 'force-cache' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const { pgn } = await r.json();
+        const { pgn } = (await r.json()) as any;
         const g = new Chess();
         g.loadPgn(pgn);
         if (!cancelled) {
@@ -49,7 +49,7 @@ export default function ShareViewStaticPage() {
             const moves = g.history();
             const d = new Chess(startFen);
             const upto = Math.min(targetPly, moves.length);
-            for (let i = 0; i < upto; i++) { try { d.move(moves[i]); } catch {} }
+            for (let i = 0; i < upto; i++) { try { d.move(moves[i]); } catch { } }
             setGame(d);
           } else {
             setGame(g);

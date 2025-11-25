@@ -8,6 +8,18 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-25',
+    version: 'v2.8.0',
+    title: 'Daily Chess Puzzle: Train Tactics Every Day',
+    items: [
+      'New /daily-puzzle page featuring a curated daily chess tactic to sharpen your skills.',
+      'Solve puzzles directly in the browser with instant move validation and feedback.',
+      'Integrated "View Solution" to learn from mistakes and "Solve Again" to reinforce patterns.',
+      'One-click "Analyze This Game" to open the puzzle\'s source game in the full Analyzer.',
+
+    ],
+  },
+  {
     date: '2025-11-21',
     version: 'v2.7.0',
     title: 'Explore Page Overhaul: Global Database & Real-Time Stats',

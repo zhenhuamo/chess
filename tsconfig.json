@@ -29,7 +29,7 @@
     ],
     "allowJs": true,
     "incremental": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "plugins": [
       {
         "name": "next"
@@ -38,6 +38,7 @@
   },
   "include": [
     "next-env.d.ts",
+    "src/env.d.ts",
     "src/app/**/*.ts",
     "src/app/**/*.tsx",
     "src/components/**/*.ts",

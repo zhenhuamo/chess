@@ -17,7 +17,7 @@ export default function ShareButton() {
   const [snack, setSnack] = React.useState<{ open: boolean; msg: string }>({ open: false, msg: '' });
   const [shareId, setShareId] = React.useState<string | null>(null);
   const [includePly, setIncludePly] = React.useState(false);
-  const [theme, setTheme] = React.useState<'light'|'dark'>('light');
+  const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
   const [autoPlay, setAutoPlay] = React.useState(false);
   const [speed, setSpeed] = React.useState(800);
   const [width, setWidth] = React.useState(420);
@@ -33,20 +33,20 @@ export default function ShareButton() {
         body: JSON.stringify({ pgn, meta: { source: 'analyze', moves: game.history().length } }),
       });
       if (!resp.ok) {
-        const text = await resp.text().catch(()=> '');
+        const text = await resp.text().catch(() => '');
         console.error('Share failed', resp.status, text);
         setSnack({ open: true, msg: 'Share failed, please try again later' });
         return;
       }
       const data = await resp.json();
-      const id = data?.id as string;
+      const id = (data as any)?.id as string;
       setShareId(id);
       setOpen(true);
       try {
         const url = buildLink(id);
         await navigator.clipboard?.writeText?.(url);
         setSnack({ open: true, msg: 'Share link copied' });
-      } catch {}
+      } catch { }
     } catch (e) {
       console.error('Share exception', e);
       setSnack({ open: true, msg: 'Share failed, please try again later' });
@@ -63,7 +63,7 @@ export default function ShareButton() {
     return `<iframe src="${src}" width="${width}" height="${height}" frameborder="0"></iframe>`;
   };
   const copy = async (text: string, msg = 'Copied') => {
-    try { await navigator.clipboard?.writeText?.(text); setSnack({ open: true, msg }); } catch {}
+    try { await navigator.clipboard?.writeText?.(text); setSnack({ open: true, msg }); } catch { }
   };
   const nativeShare = async (id: string) => {
     try {
@@ -73,7 +73,7 @@ export default function ShareButton() {
       } else {
         await copy(buildLink(id));
       }
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -86,7 +86,7 @@ export default function ShareButton() {
         </Grid>
       </Tooltip>
 
-      <Popover open={open} anchorEl={anchorEl} onClose={()=> setOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
+      <Popover open={open} anchorEl={anchorEl} onClose={() => setOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
         <Box sx={{ p: 1.5, maxWidth: 440 }}>
           <Stack spacing={1}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Share</Typography>
@@ -94,32 +94,32 @@ export default function ShareButton() {
             {shareId ? (
               <>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <FormControlLabel control={<Switch checked={includePly} onChange={(e)=> setIncludePly(e.target.checked)} />} label="Include current step" />
-                  <Button size="small" onClick={()=> copy(buildLink(shareId), 'Link copied')}>Copy Link</Button>
-                  <Button size="small" onClick={()=> copy(game.pgn(), 'PGN copied')}>Copy PGN</Button>
-                  <Button size="small" onClick={()=> window.open(buildLink(shareId) , '_blank')}>Open</Button>
+                  <FormControlLabel control={<Switch checked={includePly} onChange={(e) => setIncludePly(e.target.checked)} />} label="Include current step" />
+                  <Button size="small" onClick={() => copy(buildLink(shareId), 'Link copied')}>Copy Link</Button>
+                  <Button size="small" onClick={() => copy(game.pgn(), 'PGN copied')}>Copy PGN</Button>
+                  <Button size="small" onClick={() => window.open(buildLink(shareId), '_blank')}>Open</Button>
                 </Stack>
                 <Divider />
                 <Typography variant="subtitle2">Embed</Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <FormControl size="small" sx={{ minWidth: 100 }}>
                     <InputLabel id="theme">Theme</InputLabel>
-                    <Select labelId="theme" input={<OutlinedInput label="Theme" />} value={theme} onChange={(e)=> setTheme(e.target.value as any)}>
+                    <Select labelId="theme" input={<OutlinedInput label="Theme" />} value={theme} onChange={(e) => setTheme(e.target.value as any)}>
                       <MenuItem value="light">light</MenuItem>
                       <MenuItem value="dark">dark</MenuItem>
                     </Select>
                   </FormControl>
-                  <FormControlLabel control={<Switch checked={autoPlay} onChange={(e)=> setAutoPlay(e.target.checked)} />} label="Auto" />
-                  <TextField size="small" label="Speed" type="number" value={speed} onChange={(e)=> setSpeed(Math.max(200, Math.min(5000, Number(e.target.value)||800)))} sx={{ width: 110 }} />
+                  <FormControlLabel control={<Switch checked={autoPlay} onChange={(e) => setAutoPlay(e.target.checked)} />} label="Auto" />
+                  <TextField size="small" label="Speed" type="number" value={speed} onChange={(e) => setSpeed(Math.max(200, Math.min(5000, Number(e.target.value) || 800)))} sx={{ width: 110 }} />
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <TextField size="small" label="Width" type="number" value={width} onChange={(e)=> setWidth(Math.max(200, Number(e.target.value)||420))} sx={{ width: 120 }} />
-                  <TextField size="small" label="Height" type="number" value={height} onChange={(e)=> setHeight(Math.max(200, Number(e.target.value)||480))} sx={{ width: 120 }} />
-                  <Button size="small" onClick={()=> copy(buildEmbed(shareId), 'Embed code copied')}>Copy Embed</Button>
+                  <TextField size="small" label="Width" type="number" value={width} onChange={(e) => setWidth(Math.max(200, Number(e.target.value) || 420))} sx={{ width: 120 }} />
+                  <TextField size="small" label="Height" type="number" value={height} onChange={(e) => setHeight(Math.max(200, Number(e.target.value) || 480))} sx={{ width: 120 }} />
+                  <Button size="small" onClick={() => copy(buildEmbed(shareId), 'Embed code copied')}>Copy Embed</Button>
                 </Stack>
                 <Divider />
                 <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" size="small" onClick={()=> nativeShare(shareId)}>System Share</Button>
+                  <Button variant="outlined" size="small" onClick={() => nativeShare(shareId)}>System Share</Button>
                 </Stack>
               </>
             ) : (
@@ -129,7 +129,7 @@ export default function ShareButton() {
         </Box>
       </Popover>
 
-      <Snackbar open={snack.open} autoHideDuration={2200} onClose={()=> setSnack({ open: false, msg: '' })} anchorOrigin={{ vertical:'bottom', horizontal:'center' }}>
+      <Snackbar open={snack.open} autoHideDuration={2200} onClose={() => setSnack({ open: false, msg: '' })} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="success" variant="filled" sx={{ width: '100%' }}>{snack.msg}</Alert>
       </Snackbar>
     </>

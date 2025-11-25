@@ -4,7 +4,9 @@ import {
   LichessError,
   LichessEvalBody,
   LichessGame,
+  LichessPuzzle,
   LichessResponse,
+  LichessTVResponse,
 } from "@/types/lichess";
 import { logErrorToSentry } from "./sentry";
 import { formatUciPv } from "./chess";
@@ -58,12 +60,12 @@ export const getLichessEval = async (
 
 export interface LichessFetchOptions {
   perfType?:
-    | "ultraBullet"
-    | "bullet"
-    | "blitz"
-    | "rapid"
-    | "classical"
-    | "correspondence";
+  | "ultraBullet"
+  | "bullet"
+  | "blitz"
+  | "rapid"
+  | "classical"
+  | "correspondence";
   ratedOnly?: boolean;
   since?: number;
   until?: number;
@@ -209,4 +211,72 @@ const getGameResult = (data: LichessGame): string => {
   if (data.winner) return data.winner === "white" ? "1-0" : "0-1";
 
   return "*";
+};
+
+export const fetchDailyPuzzle = async (): Promise<LichessPuzzle | null> => {
+  try {
+    const res = await fetch("https://lichess.org/api/puzzle/daily", {
+      method: "GET",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching daily puzzle:", error);
+    return null;
+  }
+};
+
+export interface NextPuzzleOptions {
+  angle?: string;
+  difficulty?: "easiest" | "easier" | "normal" | "harder" | "hardest";
+  color?: "white" | "black";
+}
+
+export const fetchNextPuzzle = async (
+  accessToken: string,
+  options?: NextPuzzleOptions
+): Promise<LichessPuzzle> => {
+  if (!accessToken) {
+    throw new Error("缺少 Lichess 登录令牌，无法获取下一题");
+  }
+
+  const query = new URLSearchParams();
+  if (options?.angle) query.set("angle", options.angle);
+  if (options?.difficulty) query.set("difficulty", options.difficulty);
+  if (options?.color) query.set("color", options.color);
+
+  const url = `https://lichess.org/api/puzzle/next${query.toString() ? `?${query.toString()}` : ""}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("Lichess 登录已失效，请重新登录后再试");
+  }
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(
+      `无法获取下一题 (${response.status})${details ? `：${details}` : ""}`
+    );
+  }
+
+  return response.json();
+};
+
+export const fetchTVChannels = async (): Promise<LichessTVResponse | null> => {
+  try {
+    const res = await fetch("https://lichess.org/api/tv/channels", {
+      method: "GET",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching TV channels:", error);
+    return null;
+  }
 };

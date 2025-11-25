@@ -20,12 +20,12 @@ export const getChessComUserRecentGames = async (
 
   if (
     res.status >= 400 &&
-    data.message !== "Date cannot be set in the future"
+    (data as any).message !== "Date cannot be set in the future"
   ) {
     throw new Error("Error fetching games from Chess.com");
   }
 
-  const games: ChessComGame[] = data?.games ?? [];
+  const games: ChessComGame[] = (data as any).games ?? [];
 
   if (games.length < 50) {
     const previousMonth = month === 1 ? 12 : month - 1;
@@ -38,7 +38,7 @@ export const getChessComUserRecentGames = async (
 
     const dataPreviousMonth = await resPreviousMonth.json();
 
-    games.push(...(dataPreviousMonth?.games ?? []));
+    games.push(...((dataPreviousMonth as any)?.games ?? []));
   }
 
   const gamesToReturn = games
@@ -57,7 +57,7 @@ export const getChessComUserAvatar = async (
 
   const res = await fetch(`https://api.chess.com/pub/player/${usernameParam}`);
   const data = await res.json();
-  const avatarUrl = data?.avatar;
+  const avatarUrl = (data as any).avatar;
 
   return typeof avatarUrl === "string" ? avatarUrl : null;
 };

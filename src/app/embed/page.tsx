@@ -51,7 +51,7 @@ export default function EmbedPage() {
         if (!parsed?.id) throw new Error('missing id');
         const r = await fetch(`${SHARE_API_BASE}/${parsed.id}`, { cache: 'force-cache' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const { pgn } = await r.json();
+        const { pgn } = (await r.json()) as any;
         const g = new Chess();
         g.loadPgn(pgn);
         if (!cancelled) {
@@ -81,7 +81,7 @@ export default function EmbedPage() {
     const tick = () => {
       const d = new Chess(startFen);
       for (let i = 0; i < idx && i < moves.length; i++) {
-        try { d.move(moves[i]); } catch {}
+        try { d.move(moves[i]); } catch { }
       }
       setGame(d);
       idx = (idx + 1);

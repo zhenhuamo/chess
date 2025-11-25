@@ -1,12 +1,10 @@
 import type { NextConfig } from "next";
-// Enable MDX pages (App Router)
+import { setupDevPlatform } from '@cloudflare/next-on-pages/next-dev';
 import createMDX from '@next/mdx';
 
-// MDX is optional; we don't require it for Markdown rendering path.
 const withMDX = createMDX({ extension: /\.mdx?$/ });
 
 const nextConfig: NextConfig = {
-  output: "export",
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -66,4 +64,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withMDX(nextConfig);
+export default async function config() {
+  if (process.env.NODE_ENV === 'development') {
+    await setupDevPlatform({ remote: true, persist: true });
+  }
+  return withMDX(nextConfig);
+}

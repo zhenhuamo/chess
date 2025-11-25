@@ -15,6 +15,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import PaletteIcon from '@mui/icons-material/Palette';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import ArticleIcon from '@mui/icons-material/Article';
+import TodayIcon from '@mui/icons-material/Today';
+import LiveTvIcon from '@mui/icons-material/LiveTv';
 import { useState } from 'react';
 import AppearanceSettingsDialog from '@/src/components/board/appearanceSettingsDialog';
 import Image from 'next/image';
@@ -36,7 +38,7 @@ export default function SideNav({ collapsed, onToggle }: Props) {
 
   const Item = (
     { href, icon, label }:
-    { href: string; icon: React.ReactNode; label: string }
+      { href: string; icon: React.ReactNode; label: string }
   ) => {
     const active = pathname === href || (href !== '/' && pathname?.startsWith(href));
     return (
@@ -89,11 +91,12 @@ export default function SideNav({ collapsed, onToggle }: Props) {
       <Divider />
       <List dense sx={{ py: 0.5 }}>
         <Item href="/" icon={<HomeIcon />} label="Home" />
+        <Item href="/daily-puzzle" icon={<TodayIcon />} label="Daily Puzzle" />
+        <Item href="/play" icon={<SportsEsportsIcon />} label="Play" />
         <Item href="/analyze" icon={<InsightsIcon />} label="Analyze" />
         <Item href="/explore" icon={<TravelExploreIcon />} label="Explore" />
         <Item href="/games" icon={<LibraryBooksIcon />} label="Games" />
         <Item href="/blog" icon={<ArticleIcon />} label="Blog" />
-        <Item href="/play" icon={<SportsEsportsIcon />} label="Play" />
         <Item href="/records" icon={<StorageIcon />} label="Records" />
         <Item href="/updates" icon={<HistoryIcon />} label="Updates" />
         <Item href="/contact" icon={<MailOutlineIcon />} label="Contact" />

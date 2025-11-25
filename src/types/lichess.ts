@@ -85,3 +85,39 @@ export interface LichessExplorerResponse {
     name: string;
   };
 }
+
+export interface LichessPuzzle {
+  game: {
+    id: string;
+    perf: { key: string; name: string };
+    rated: boolean;
+    players: [
+      { userId: string; name: string; color: "white" | "black" },
+      { userId: string; name: string; color: "white" | "black" }
+    ];
+    pgn: string;
+    clock: string;
+  };
+  puzzle: {
+    id: string;
+    rating: number;
+    plays: number;
+    initialPly: number;
+    solution: string[];
+    themes: string[];
+  };
+}
+
+export interface LichessTVChannel {
+  user: {
+    name: string;
+    title?: string;
+    id: string;
+  };
+  rating: number;
+  gameId: string;
+}
+
+export interface LichessTVResponse {
+  [key: string]: LichessTVChannel;
+}

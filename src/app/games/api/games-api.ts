@@ -51,7 +51,7 @@ export async function openInAnalyzer(game: GameSummary): Promise<string> {
         white: { name: game.white, rating: game.whiteElo },
         black: { name: game.black, rating: game.blackElo },
       });
-    } catch {}
+    } catch { }
 
     const db = await openDB("games", 1, {
       upgrade(db) {
@@ -95,7 +95,7 @@ export async function fetchGamePgn(game: GameSummary): Promise<string> {
           const text = await res.text();
           if (text && /\n\n/.test(text)) return text;
         }
-      } catch {}
+      } catch { }
     }
   }
   // 兜底：用头信息构造极简 PGN（无走法），以保证分析页至少可打开
@@ -120,7 +120,7 @@ export async function shareGame(game: GameSummary): Promise<string> {
     throw new Error(`Failed to share game: ${response.statusText}`);
   }
 
-  const { id } = await response.json();
+  const { id } = (await response.json()) as any;
   const shareUrl = `${window.location.origin}/g/${id}`;
 
   // 复制到剪贴板
