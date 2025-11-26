@@ -8,6 +8,16 @@ export interface UpdateEntry {
 // Edit this list whenever you ship changes. Newest first.
 export const UPDATES: UpdateEntry[] = [
   {
+    date: '2025-11-26',
+    version: 'v2.8.1',
+    title: 'Games Manifest Speedup & Preview Fast Path',
+    items: [
+      'Games manifest now includes final-board FEN and last-move UCI for every game, so card previews render without extra PGN fetches.',
+      'Manifest supports per-file filtering; /games requests only the active file to shrink first-load size and speed up cold visits.',
+      'If manifest is missing or empty, the page automatically falls back to streaming parsing—no behavior regression.',
+    ],
+  },
+  {
     date: '2025-11-25',
     version: 'v2.8.0',
     title: 'Daily Chess Puzzle: Train Tactics Every Day',
