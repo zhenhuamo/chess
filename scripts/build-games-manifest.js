@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const { Chess } = require('chess.js');
 
 function parseArgs(argv) {
   const args = { inputs: [], out: 'out/games-manifest.json', max: 0 };
@@ -40,7 +41,7 @@ function extractHeadersBlockText(lines) {
   return headers;
 }
 
-function toSummary(headers, file) {
+function toSummary(headers, file, moveLines) {
   const site = headers.Site || '';
   const m = site.match(/lichess\.org\/([A-Za-z0-9]+)/);
   let id = m?.[1] || site;
@@ -53,12 +54,13 @@ function toSummary(headers, file) {
     };
     id = toB64Safe(JSON.stringify(finger));
   }
+  const parsed = parseMovetext(headers, moveLines);
   const s = {
     id,
     white: headers.White || 'Unknown',
     black: headers.Black || 'Unknown',
     result: headers.Result || '*',
-    moves: 0,
+    moves: parsed.moves,
     file,
   };
   if (headers.WhiteElo) s.whiteElo = parseInt(headers.WhiteElo, 10) || undefined;
@@ -70,7 +72,34 @@ function toSummary(headers, file) {
   if (headers.Termination) s.termination = headers.Termination;
   if (headers.ECO) s.eco = headers.ECO;
   if (headers.Opening) s.opening = headers.Opening;
+  if (parsed.fen) s.fen = parsed.fen;
+  if (parsed.lastMoveUci) s.lastMoveUci = parsed.lastMoveUci;
   return s;
+}
+
+function parseMovetext(headers, moveLines) {
+  if (!moveLines || moveLines.length === 0) {
+    return { moves: 0 };
+  }
+  try {
+    const chess = new Chess();
+    const headerText = Object.entries(headers)
+      .map(([k, v]) => `[${k} "${v}"]`)
+      .join('\n');
+    const movetext = moveLines.join(' ').trim();
+    const pgn = `${headerText}\n\n${movetext}`;
+    const ok = chess.loadPgn(pgn, { sloppy: true });
+    if (ok === false) return { moves: 0 };
+    const hist = chess.history({ verbose: true });
+    const moves = hist.length;
+    const last = hist[moves - 1];
+    const lastMoveUci = last
+      ? `${last.from}${last.to}${last.promotion ? last.promotion : ''}`
+      : undefined;
+    return { moves, lastMoveUci, fen: chess.fen() };
+  } catch (e) {
+    return { moves: 0 };
+  }
 }
 
 async function parsePgnUrl(url, max) {
@@ -79,9 +108,21 @@ async function parsePgnUrl(url, max) {
   const dec = new TextDecoder('utf-8');
   const reader = res.body.getReader();
   let buf = '';
-  let inHeader = false;
   let headerLines = [];
+  let moveLines = [];
+  let inMoves = false;
   const out = [];
+  const file = path.basename(new URL(url).pathname);
+
+  const flushGame = () => {
+    if (!headerLines.length) return;
+    const headers = extractHeadersBlockText(headerLines);
+    out.push(toSummary(headers, file, moveLines));
+    headerLines = [];
+    moveLines = [];
+    inMoves = false;
+  };
+
   while (true) {
     const { done, value } = await reader.read(); if (done) break;
     buf += dec.decode(value, { stream: true });
@@ -91,27 +132,48 @@ async function parsePgnUrl(url, max) {
       const line = raw.trim();
       if (line.startsWith('[Event ')) {
         if (headerLines.length) {
-          const headers = extractHeadersBlockText(headerLines);
-          out.push(toSummary(headers, path.basename(new URL(url).pathname)));
-          headerLines = [];
+          flushGame();
           if (max && out.length >= max) return out;
         }
-        inHeader = true; headerLines = [line];
-      } else if (inHeader && line.startsWith('[')) {
+        headerLines = [line];
+        moveLines = [];
+        inMoves = false;
+        continue;
+      }
+
+      if (!inMoves && line.startsWith('[')) {
         headerLines.push(line);
-      } else if (inHeader && line === '') {
-        const headers = extractHeadersBlockText(headerLines);
-        out.push(toSummary(headers, path.basename(new URL(url).pathname)));
-        headerLines = []; inHeader = false;
-        if (max && out.length >= max) return out;
+        continue;
+      }
+
+      if (!inMoves && line === '') {
+        inMoves = true;
+        continue;
+      }
+
+      if (inMoves) {
+        // 如果遇到新的 [Event ，说明上一个对局结束
+        if (line.startsWith('[Event ')) {
+          flushGame();
+          if (max && out.length >= max) return out;
+          headerLines = [line];
+          moveLines = [];
+          inMoves = false;
+        } else {
+          moveLines.push(line);
+        }
       }
     }
   }
-  // flush last
-  if (headerLines.length) {
-    const headers = extractHeadersBlockText(headerLines);
-    out.push(toSummary(headers, path.basename(new URL(url).pathname)));
+  const tail = buf.trim();
+  if (tail) {
+    if (inMoves) moveLines.push(tail);
+    else if (tail.startsWith('[Event ')) {
+      flushGame();
+      headerLines = [tail];
+    }
   }
+  if (headerLines.length) flushGame();
   return out;
 }
 
@@ -142,4 +204,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
-

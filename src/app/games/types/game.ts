@@ -33,6 +33,10 @@ export interface GameSummary {
   round?: string;
   /** 结束方式 */
   termination?: string;
+  /** 最终局面 FEN（manifest 预计算，避免重复解析 PGN） */
+  fen?: string;
+  /** 最后一步 UCI（用于卡片预览箭头） */
+  lastMoveUci?: string;
 
   // 开局信息
   /** ECO 开局分类代码 (例如: "C20", "B12") */

@@ -141,6 +141,16 @@ export default function GameBoardPreview({ game }: Props) {
     if (loadingRef.current || fen) return;
     loadingRef.current = true;
     try {
+      // 如果 manifest 已提供最终局面与最后一步，直接使用，避免额外请求
+      if (game.fen) {
+        setFen(game.fen);
+        setAnalysisFen(game.fen);
+        if (game.lastMoveUci && game.lastMoveUci.length >= 4) {
+          setLastMove({ from: game.lastMoveUci.slice(0, 2), to: game.lastMoveUci.slice(2, 4), uci: game.lastMoveUci });
+        }
+        return;
+      }
+
       // 缓存 key：优先 lichess 对局号，否则使用摘要 id
       const site = game.site || "";
       const match = site.match(/lichess\.org\/([A-Za-z0-9]+)/);
